@@ -1,0 +1,1628 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b2a5b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Guías Petroflex">
+<title>Control de Guías</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icons/favicon.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+:root{--bg:#dff1fb;--ink:#0d1b2a;--navy:#0b2a5b;--navy2:#163f80;--red:#c62828;--green:#2e7d32;--amber:#b26a00;--card:#fff;--line:#c5dbea;--muted:#5b6b7b}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:15px}
+button{font:inherit;cursor:pointer}
+input,select{font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px;width:100%;background:#fff;color:var(--ink)}
+label{font-size:13px;color:var(--muted);display:block;margin:8px 0 4px}
+.hidden{display:none!important}
+header{background:var(--navy);color:#fff;padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top));display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:20}
+header h1{font-size:16px;margin:0;flex:1}
+header .u{font-size:12px;opacity:.85;text-align:right}
+.hbtn{background:transparent;border:1px solid #ffffff55;color:#fff;border-radius:8px;padding:6px 9px}
+.badge{background:var(--red);color:#fff;border-radius:10px;padding:1px 7px;font-size:12px;margin-left:4px}
+nav{display:flex;gap:4px;overflow-x:auto;background:var(--navy2);padding:6px;position:sticky;top:52px;z-index:19}
+nav button{flex:1;min-width:84px;background:transparent;color:#cfe3ff;border:0;border-radius:8px;padding:8px 6px;font-size:13px;white-space:nowrap}
+nav button.on{background:#fff;color:var(--navy);font-weight:600}
+main{max-width:1100px;margin:0 auto;padding:12px 12px 40px}
+.card{background:var(--card);border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px #0b2a5b1f}
+.card h3{margin:0 0 8px;font-size:16px;color:var(--navy)}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.row>*{flex:1}
+.btn{background:var(--navy);color:#fff;border:0;border-radius:10px;padding:12px 14px;font-weight:600}
+.btn.sec{background:#e8f1fa;color:var(--navy);border:1px solid var(--line)}
+.btn.red{background:var(--red)}
+.btn.green{background:var(--green)}
+.btn.sm{padding:7px 10px;font-size:13px;border-radius:8px;flex:0 0 auto}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.big{font-size:17px;padding:16px}
+.muted{color:var(--muted);font-size:13px}
+.pw{position:relative}
+.pw input{padding-right:46px}
+.eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:0;padding:8px;color:var(--navy);display:flex}
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+#login .card{width:100%;max-width:380px}
+.logo{font-size:22px;font-weight:700;color:var(--navy);text-align:center;margin-bottom:4px}
+.err{color:var(--red);font-size:13px;min-height:18px;margin-top:6px}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:99;display:flex;flex-direction:column;gap:6px;width:min(92vw,420px)}
+.t{background:var(--navy);color:#fff;padding:11px 14px;border-radius:10px;box-shadow:0 3px 10px #0004;font-size:14px}
+.t.err{background:var(--red)}.t.ok{background:var(--green)}
+.folio-in{font-size:26px;font-weight:700;text-align:center;letter-spacing:1px}
+#cpImg{width:100%;max-height:60vh;object-fit:contain;background:#eee;border-radius:8px;margin-top:10px}
+.qbox{border-radius:10px;padding:10px 12px;margin-top:10px;font-size:14px}
+.qbox.ok{background:#e6f4ea;border:1px solid #9fd3aa}
+.qbox.bad{background:#fdecea;border:1px solid #f1a7a1}
+.qgrid{display:grid;grid-template-columns:auto 1fr auto;gap:4px 8px;margin-top:8px;font-size:12px;align-items:center}
+.bar{height:6px;background:#0001;border-radius:4px;overflow:hidden}.bar i{display:block;height:100%}
+.tips{font-size:13px;color:var(--muted);margin-top:10px;line-height:1.5}
+.filtros{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
+.filtros>div{flex:1;min-width:130px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.chip{display:inline-block;padding:3px 9px;border-radius:12px;font-size:12px;font-weight:600;background:#e8f1fa;color:var(--navy);border:0}
+.chip.f{background:#fdecea;color:var(--red)}.chip.r{background:#e6f4ea;color:var(--green)}.chip.a{background:#eee;color:#555}.chip.w{background:#fff4e0;color:var(--amber)}
+.gi{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);align-items:center}
+.gi .th{width:64px;height:64px;flex:0 0 64px;border-radius:8px;overflow:hidden;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);text-align:center}
+.gi .th img{width:100%;height:100%;object-fit:cover;cursor:pointer}
+.gi .gd{flex:1;min-width:0}.gi .gd .muted{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gi .ga{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:45%}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.kpi{background:#fff;border-radius:12px;padding:12px;box-shadow:0 1px 3px #0b2a5b1f}
+.kpi b{display:block;font-size:24px;color:var(--navy)}.kpi span{font-size:12px;color:var(--muted)}
+.kpi.f b{color:var(--red)}.kpi.r b{color:var(--green)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
+.chartbox{position:relative;height:280px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--navy);font-size:12px;position:sticky;top:0;background:#fff}
+td.n,th.n{text-align:right}
+.scroll{max-height:340px;overflow:auto}
+tr.click{cursor:pointer}tr.click:hover{background:#f3f8fd}
+.modal{position:fixed;inset:0;background:#0009;z-index:50;display:flex;align-items:center;justify-content:center;padding:12px}
+.modal .box{background:#fff;border-radius:14px;width:min(96vw,760px);max-height:94vh;overflow:auto;padding:14px}
+.visor{overflow:auto;max-height:66vh;background:#222;border-radius:8px;text-align:center}
+.visor img{max-width:100%;cursor:zoom-in}.visor.zoom img{max-width:none;width:220%;cursor:zoom-out}
+.imp{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px;margin-top:8px}
+.imp img{width:70px;height:90px;object-fit:cover;border-radius:6px;background:#eee}
+.imp .f{flex:1;min-width:0}
+.imp input[type=number]{padding:7px;font-weight:700}
+.prog{height:8px;background:#0001;border-radius:4px;overflow:hidden;margin-top:8px}.prog i{display:block;height:100%;background:var(--navy);width:0}
+.ocr{border-radius:10px;padding:10px 12px;margin-top:8px;font-size:14px;background:#eef5fc;border:1px solid var(--line)}
+.ocr.ok{background:#e6f4ea;border-color:#9fd3aa}.ocr.warn{background:#fff4e0;border-color:#f0c27a}.ocr.bad{background:#fdecea;border-color:#f1a7a1}
+.pill{display:inline-block;padding:3px 10px;margin:2px;border-radius:12px;background:var(--navy);color:#fff;font-size:13px;cursor:pointer;border:0}
+.gaps{font-family:ui-monospace,Menlo,monospace;font-size:13px;line-height:1.6;word-break:break-word;max-height:220px;overflow:auto;background:#f6f9fc;border-radius:8px;padding:8px}
+@media (max-width:600px){.gi .ga{max-width:40%}.btn.sm{padding:6px 8px}}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="login" class="hidden">
+  <div class="card">
+    <div class="logo">Control de Guías</div>
+    <div class="muted" style="text-align:center;margin-bottom:10px">Petroflex · Guías de despacho recepcionadas</div>
+    <label>Usuario</label>
+    <input id="lgUser" autocomplete="username" autocapitalize="none">
+    <label>Clave</label>
+    <div class="pw"><input id="lgPass" type="password" autocomplete="current-password"><button type="button" class="eye" aria-label="Mostrar clave"></button></div>
+    <button class="btn" style="width:100%;margin-top:14px" id="lgBtn">Ingresar</button>
+    <div class="err" id="lgErr"></div>
+  </div>
+</div>
+
+<div id="setup" class="hidden" style="padding:20px"><div class="card"><h3>Falta configurar Firebase</h3><p>Abre este archivo en un editor y pega la configuración de tu proyecto Firebase en la constante <b>FIREBASE_CONFIG</b> (al inicio del bloque de código).</p></div></div>
+
+<!-- ============ APP ============ -->
+<div id="app" class="hidden">
+<header>
+  <h1>Control de Guías</h1>
+  <button class="hbtn hidden" id="colaBtn" title="Guías pendientes de subir">⏳<span class="badge" id="colaN">0</span></button>
+  <div class="u"><div id="hdNombre"></div><div id="hdRol"></div></div>
+  <button class="hbtn" id="pwBtn" title="Cambiar mi clave">🔑</button>
+  <button class="hbtn" id="outBtn" title="Salir">Salir</button>
+</header>
+<nav id="nav"></nav>
+<main>
+
+  <!-- Filtro de período (Guías, Dashboard, PC) -->
+  <div class="card hidden" id="periodo">
+    <div class="filtros">
+      <div><label>Desde (fecha guía)</label><input type="date" id="fDesde"></div>
+      <div><label>Hasta</label><input type="date" id="fHasta"></div>
+      <div style="flex:0 0 auto"><button class="btn sm" id="fAplicar">Aplicar</button></div>
+    </div>
+    <div class="chips">
+      <button class="chip" data-rg="mes">Este mes</button>
+      <button class="chip" data-rg="ant">Mes anterior</button>
+      <button class="chip" data-rg="90">Últimos 90 días</button>
+      <button class="chip" data-rg="anio">Este año</button>
+      <span class="muted" id="rgInfo" style="align-self:center"></span>
+    </div>
+  </div>
+
+  <!-- CAPTURAR -->
+  <section id="tab-capturar" class="hidden">
+    <div class="card">
+      <h3>Fotografiar guía recepcionada (4ª copia)</h3>
+      <label>N° de folio de la guía <span style="font-weight:400">(si lo dejas vacío, se lee desde la foto)</span></label>
+      <input id="cpFolio" class="folio-in" type="number" inputmode="numeric" placeholder="Ej: 125430">
+      <div id="cpInfo" class="muted" style="margin-top:6px;min-height:18px"></div>
+      <label style="display:flex;gap:8px;align-items:center;color:var(--ink)"><input type="checkbox" id="cpOcrOn" style="width:auto" checked> Leer folio y NV automáticamente desde la foto</label>
+      <div class="row">
+        <button class="btn big" id="cpCam">📷 Tomar foto</button>
+        <button class="btn sec" id="cpFile" style="flex:0 0 auto">🖼️ Archivo</button>
+      </div>
+      <input type="file" id="inCam" accept="image/*" capture="environment" hidden>
+      <input type="file" id="inFile" accept="image/*,application/pdf" hidden>
+      <div id="cpPrev" class="hidden">
+        <img id="cpImg" alt="Vista previa">
+        <div id="cpQ"></div>
+        <div id="cpOcr"></div>
+        <div class="row">
+          <button class="btn sec" id="cpRep">🔄 Repetir foto</button>
+          <button class="btn green" id="cpSave">💾 Guardar guía</button>
+        </div>
+        <button class="btn red hidden" id="cpForce" style="width:100%;margin-top:8px">Guardar igual (solo admin)</button>
+      </div>
+      <div class="tips">Para que la foto pase la validación: guía completa dentro del cuadro, sobre superficie plana y oscura, buena luz sin flash directo, celular quieto y paralelo a la hoja.</div>
+    </div>
+    <div class="card"><h3>Guardadas en esta sesión</h3><div id="cpLog" class="muted">Aún no hay guías guardadas.</div></div>
+  </section>
+
+  <!-- IMPORTAR -->
+  <section id="tab-importar" class="hidden">
+    <div class="card">
+      <h3>Importar guías recibidas por correo</h3>
+      <p class="muted">Fotos (JPG/PNG/HEIC) o PDF con varias guías. La app lee el folio y la NV de cada página y junta en una misma guía las copias con el mismo folio. Revisa los folios antes de subir. Un PDF grande (70+ páginas) tarda unos 5 minutos; conviene hacerlo desde el computador.</p>
+      <button class="btn" id="imBtn">Seleccionar archivos</button>
+      <input type="file" id="inImp" multiple accept="image/*,application/pdf" hidden>
+      <div id="imInfo" class="muted" style="margin-top:8px"></div>
+      <div class="prog hidden" id="imProg"><i></i></div>
+      <div id="imList"></div>
+      <div id="imOpc" class="hidden">
+        <label>Si una guía ya tiene foto en la app</label>
+        <select id="imModo"><option value="agregar">Agregar estas páginas a las existentes</option><option value="reemplazar">Reemplazar la foto existente (queda en historial)</option></select>
+        <div class="muted" style="margin-top:4px">Si una guía viene en 2 páginas (copia con y sin precios), ambas quedan guardadas en la misma guía.</div>
+      </div>
+      <button class="btn green hidden" id="imUp" style="width:100%;margin-top:10px">Subir seleccionadas</button>
+    </div>
+    <div class="card">
+      <h3>Importar Excel de guías emitidas</h3>
+      <p class="muted">Carga el reporte de guías (ej. Query_Guias_de_Despacho.xlsx). Con esto la app sabe qué folios se emitieron, a qué cliente y transportista, y calcula las faltantes. No toca las fotos ya subidas.</p>
+      <label>Tipo de guías de este archivo</label>
+      <select id="xlsTipo">
+        <option value="">Según columna Concepto (reporte normal de guías)</option>
+        <option value="factant">Todas son de facturación anticipada</option>
+        <option value="traslado">Todas son traslados</option>
+        <option value="otro">Todas son "Otro"</option>
+      </select>
+      <label>Archivo</label>
+      <input type="file" id="inXls" accept=".xlsx,.xls,.csv">
+      <div id="xlsPrev"></div>
+    </div>
+  </section>
+
+  <!-- GUÍAS -->
+  <section id="tab-guias" class="hidden">
+    <div class="card">
+      <div class="filtros">
+        <div style="flex:2"><label>Buscar (folio, cliente, transportista, NV)</label><input id="lsTxt" placeholder="Escribe para filtrar"></div>
+        <div><label>Estado</label><select id="lsEst">
+          <option value="">Todas</option><option value="faltante">Faltantes</option><option value="respaldada">Con foto</option>
+          <option value="anulada">Anuladas</option><option value="clasificar">Por clasificar</option><option value="norequiere">No requieren foto</option><option value="sinemision">Foto sin emisión en Excel</option></select></div>
+      </div>
+      <button class="chip f hidden" id="lsFiltro" style="margin-top:8px;cursor:pointer" title="Quitar filtro"></button>
+      <div class="muted" id="lsInfo" style="margin-top:8px"></div>
+      <div id="lsList"></div>
+    </div>
+  </section>
+
+  <!-- DASHBOARD -->
+  <section id="tab-dashboard" class="hidden">
+    <div class="kpis" id="kpis"></div>
+    <div class="grid2" style="margin-top:12px">
+      <div class="card"><h3>Cumplimiento del período</h3><div class="chartbox"><canvas id="chDonut"></canvas></div></div>
+      <div class="card"><h3>Emitidas vs respaldadas por día</h3><div class="chartbox"><canvas id="chDia"></canvas></div></div>
+      <div class="card"><h3>Faltantes por transportista</h3><div class="chartbox"><canvas id="chTr"></canvas></div></div>
+      <div class="card"><h3>Faltantes por cliente (top 15)</h3><div class="chartbox"><canvas id="chCl"></canvas></div></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><h3>Ranking transportistas</h3><div class="muted">Toca una fila para ver sus guías faltantes.</div><div class="scroll" id="tbTr"></div></div>
+      <div class="card"><h3>Ranking clientes</h3><div class="muted">Toca una fila para ver sus guías faltantes.</div><div class="scroll" id="tbCl"></div></div>
+      <div class="card"><h3>Por tipo de guía</h3><div class="muted">Los tipos que no requieren foto no cuentan como faltantes.</div><div class="scroll" id="tbTipo"></div></div>
+    </div>
+    <div class="card">
+      <h3>Correlativo: folios faltantes</h3>
+      <div class="muted">Emitidas sin foto de respaldo:</div>
+      <div class="gaps" id="gFalt"></div>
+      <div class="muted" style="margin-top:10px"><b>Por clasificar</b>: folios del correlativo que no vienen en el Excel (facturación anticipada, traslados, anuladas no informadas…). Mientras no se clasifiquen, el dato de faltantes está incompleto.</div>
+      <div class="gaps" id="gSin"></div>
+      <div class="row hidden" id="anRow">
+        <button class="btn" id="clVer" style="flex:0 0 auto">Ver y clasificar</button>
+        <button class="btn sec" id="clTodo" style="flex:0 0 auto">Clasificar varios…</button>
+      </div>
+      <div class="row"><button class="btn" id="dashXls">⬇️ Excel de faltantes y rankings</button></div>
+    </div>
+  </section>
+
+  <!-- PC / DESCARGAS -->
+  <section id="tab-pc" class="hidden">
+    <div class="card">
+      <h3>Carpeta en el computador (S:\)</h3>
+      <p class="muted">Solo en Chrome o Edge de computador. Eliges la carpeta una vez (ej. <b>S:\GUIAS DE DESPACHO\GUIAS RECEPCIONADAS</b>) y "Sincronizar" copia las fotos del período elegido arriba, en subcarpetas por mes (AAAA-MM) y con nombre GD_0125430.jpg. Las que ya están no se vuelven a copiar.</p>
+      <div id="pcDir" class="muted">Sin carpeta elegida.</div>
+      <div class="row">
+        <button class="btn sec" id="pcElegir">📁 Elegir carpeta</button>
+        <button class="btn" id="pcSync">🔄 Sincronizar ahora</button>
+      </div>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:10px;color:var(--ink)"><input type="checkbox" id="pcAuto" style="width:auto"> Sincronizar sola cada 10 minutos mientras la app esté abierta</label>
+      <div class="prog hidden" id="pcProg"><i></i></div>
+      <div id="pcLog" class="muted" style="margin-top:6px"></div>
+      <p class="muted">Acceso directo: en Chrome/Edge abre el menu ⋮ → "Instalar Control de Guías" (o "Crear acceso directo") y quedará como ícono en el escritorio.</p>
+    </div>
+    <div class="card">
+      <h3>Descargas del período</h3>
+      <div class="row">
+        <button class="btn" id="dlZip">🗜️ ZIP de fotos</button>
+        <button class="btn" id="dlPdf">📄 PDF (máx. 200)</button>
+        <button class="btn sec" id="dlXls">📊 Excel listado</button>
+      </div>
+      <div class="prog hidden" id="dlProg"><i></i></div>
+    </div>
+    <div class="card">
+      <h3>Este dispositivo</h3>
+      <div id="locInfo" class="muted"></div>
+      <div class="row">
+        <button class="btn sec" id="locSync">Actualizar datos ahora</button>
+        <button class="btn sec" id="locReset">Recargar todo desde la nube</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ADMIN -->
+  <section id="tab-admin" class="hidden">
+    <div class="card">
+      <h3>Usuarios</h3>
+      <div class="filtros">
+        <div><label>Nombre</label><input id="nuNombre"></div>
+        <div><label>Usuario</label><input id="nuUser" autocapitalize="none"></div>
+        <div><label>Clave</label><div class="pw"><input id="nuPass" type="password"><button type="button" class="eye" aria-label="Mostrar clave"></button></div></div>
+        <div><label>Rol</label><select id="nuRol"><option value="gestionador">Gestionador</option><option value="lector">Lector</option><option value="admin">Admin</option></select></div>
+        <div style="flex:0 0 auto"><button class="btn" id="nuBtn">Crear</button></div>
+      </div>
+      <div class="scroll" id="usList" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
+      <h3>Tipos de guía</h3>
+      <p class="muted">Marca qué tipos deben tener foto de la 4ª copia recepcionada. Los que no, no cuentan como faltantes.</p>
+      <div id="tpList"></div>
+      <h3 style="margin-top:14px">Conceptos del Excel</h3>
+      <p class="muted">Cada código de la columna "Concepto" del reporte de guías se asigna a un tipo. Si el reporte se amplía para traer todas las guías de salida, aquí se indica cuál es cuál.</p>
+      <div id="cnList"></div>
+      <div class="row"><input id="cnNuevo" placeholder="Agregar código de concepto (ej. 3)" style="flex:1"><button class="btn sec" id="cnAdd" style="flex:0 0 auto">Agregar</button></div>
+      <div class="row"><button class="btn" id="tpSave">Guardar tipos y conceptos</button></div>
+    </div>
+    <div class="card">
+      <h3>Exigencia de legibilidad</h3>
+      <p class="muted">Una foto se rechaza si no cumple estos mínimos. Sube la nitidez si pasan fotos borrosas; bájala si rechaza fotos que se leen bien. Referencia: foto nítida ≈ 35, levemente desenfocada pero legible ≈ 9, ilegible ≤ 4 (recomendado 6).</p>
+      <div class="filtros">
+        <div><label>Nitidez mínima</label><input type="number" id="cfNit" step="0.5"></div>
+        <div><label>Lado mínimo (px)</label><input type="number" id="cfLado"></div>
+        <div><label>Brillo mínimo</label><input type="number" id="cfBmin"></div>
+        <div><label>Contraste mínimo</label><input type="number" id="cfCon"></div>
+        <div><label>Meses de historial en dispositivos</label><input type="number" id="cfMeses"></div>
+      </div>
+      <div class="row"><button class="btn" id="cfSave">Guardar configuración</button></div>
+    </div>
+  </section>
+</main>
+</div>
+
+<!-- Visor -->
+<div class="modal hidden" id="mdVer"><div class="box">
+  <div style="display:flex;align-items:center;gap:8px"><h3 style="margin:0;flex:1;color:var(--navy)" id="vrTit"></h3><button class="btn sec sm" data-close>✕</button></div>
+  <div class="muted" id="vrInfo" style="margin:6px 0"></div>
+  <div class="row" id="vrPags" style="margin:0 0 8px;justify-content:flex-start"></div>
+  <div class="visor" id="vrBox"><img id="vrImg" alt="Guía"></div>
+  <div class="muted" style="margin-top:4px">Toca la imagen para acercar.</div>
+  <div class="row">
+    <button class="btn" id="vrJpg">⬇️ JPG</button>
+    <button class="btn" id="vrPdf">📄 PDF</button>
+    <button class="btn sec" id="vrCel">📲 Guardar en celular</button>
+  </div>
+  <div id="vrHist" class="muted" style="margin-top:8px"></div>
+</div></div>
+
+<!-- Modal clasificar -->
+<div class="modal hidden" id="mdCla"><div class="box" style="max-width:460px">
+  <h3 style="margin:0 0 4px;color:var(--navy)">Clasificar guías</h3>
+  <div class="muted">Para folios que no vienen en el Excel (facturación anticipada, traslados, etc.). Puedes poner varios: <b>211518-211520, 211591</b></div>
+  <label>Folios</label><input id="clFolios" inputmode="numeric">
+  <div class="muted" id="clInfo" style="margin-top:4px"></div>
+  <label>Tipo de guía</label>
+  <select id="clTipo"></select>
+  <div class="muted" id="clReq" style="margin-top:4px"></div>
+  <div id="clDatos">
+    <label>Cliente (opcional)</label><input id="clCliente" list="dlClientes" autocomplete="off">
+    <datalist id="dlClientes"></datalist>
+    <div class="filtros">
+      <div><label>NV (opcional)</label><input id="clNV" inputmode="numeric"></div>
+      <div><label>Patente (opcional)</label><input id="clPat" autocapitalize="characters"></div>
+    </div>
+  </div>
+  <label>Observación (opcional)</label><input id="clObs" placeholder="Ej: guía de facturación anticipada fact. 205600">
+  <div class="err" id="clErr"></div>
+  <div class="row"><button class="btn sec" data-close>Cancelar</button><button class="btn" id="clOk">Guardar</button></div>
+</div></div>
+
+<!-- Modal clave -->
+<div class="modal hidden" id="mdPw"><div class="box" style="max-width:380px">
+  <h3 style="margin:0 0 6px;color:var(--navy)" id="pwTit">Cambiar clave</h3>
+  <div class="muted" id="pwSub"></div>
+  <label>Nueva clave</label>
+  <div class="pw"><input id="pw1" type="password"><button type="button" class="eye" aria-label="Mostrar clave"></button></div>
+  <label>Repetir clave</label>
+  <div class="pw"><input id="pw2" type="password"><button type="button" class="eye" aria-label="Mostrar clave"></button></div>
+  <div class="err" id="pwErr"></div>
+  <div class="row"><button class="btn sec" id="pwCancel">Cancelar</button><button class="btn" id="pwOk">Guardar</button></div>
+</div></div>
+
+<div id="toast"></div>
+
+<script>
+/* =====================================================================
+   CONFIGURACIÓN — pega aquí los datos de tu proyecto
+   ===================================================================== */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyA7cznBPzlyLZRNfG4k-dXwTn8MkYNppVA",
+  authDomain: "guias-petroflex.firebaseapp.com",
+  projectId: "guias-petroflex",
+  storageBucket: "guias-petroflex.firebasestorage.app",
+  messagingSenderId: "384164801105",
+  appId: "1:384164801105:web:449cc6cd5438ab7e072670"
+};
+const CLOUDINARY = { cloudName: "nasqd2m5", uploadPreset: "guias_despacho", folder: "guias-recepcionadas" };
+const ADMIN_INICIAL = { usuario: "admin", clave: "admin123" };
+/* ===================================================================== */
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const PERM = {
+  admin:       { capturar:1, importar:1, anular:1, clasificar:1, eliminar:1, admin:1, forzar:1 },
+  gestionador: { capturar:1, importar:1, anular:1, clasificar:1 },
+  lector:      {}
+};
+const ROL_TXT = { admin:'Admin', gestionador:'Gestionador', lector:'Lector' };
+const S = {
+  user:null, todas:new Map(), guias:new Map(), log:[], imp:[], charts:{}, capt:null,
+  cfg:{ calVer:2, minNitidez:6, minLado:1200, minBrillo:70, minContraste:30, meses:12, tipos:{}, conceptos:{} }
+};
+let db;
+
+/* ---------- utilidades ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(7,'0');
+const fmtN = n => Number(n||0).toLocaleString('es-CL');
+const ymd = d => { const x=new Date(d); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`; };
+const hoy = () => ymd(new Date());
+const slug = s => String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'.').replace(/^\.+|\.+$/g,'');
+const can = k => !!(S.user && PERM[S.user.rol] && PERM[S.user.rol][k]);
+const TS = () => firebase.firestore.FieldValue.serverTimestamp();
+async function sha(s){ const b=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
+const hashClave = (u,p) => sha('gd|'+u+'|'+p);
+function toast(msg, type='', ms=3500){ const t=document.createElement('div'); t.className='t '+type; t.textContent=msg; $('#toast').appendChild(t); setTimeout(()=>t.remove(), ms); }
+function prog(el, p){ el.classList.toggle('hidden', p==null); if(p!=null) el.firstElementChild.style.width = Math.round(p*100)+'%'; }
+
+const EYE_ON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.9 17.9A10.4 10.4 0 0 1 12 19c-7 0-11-7-11-7a19 19 0 0 1 5.1-5.9M9.9 5.2A9.6 9.6 0 0 1 12 5c7 0 11 7 11 7a19 19 0 0 1-2.2 3.2M14.1 14.1a3 3 0 1 1-4.2-4.2"/><path d="M1 1l22 22"/></svg>';
+document.querySelectorAll('.eye').forEach(b=>b.innerHTML=EYE_ON);
+document.addEventListener('click', e=>{
+  const b=e.target.closest('.eye'); if(!b) return;
+  const i=b.previousElementSibling, show=i.type==='password';
+  i.type=show?'text':'password'; b.innerHTML=show?EYE_OFF:EYE_ON;
+  b.setAttribute('aria-label', show?'Ocultar clave':'Mostrar clave');
+});
+
+/* ---------- IndexedDB local (copias, cola sin señal, caché de datos) ---------- */
+let _idb;
+function idb(){ return _idb || (_idb = new Promise((res,rej)=>{ const r=indexedDB.open('guiasPF',1);
+  r.onupgradeneeded=()=>{ const d=r.result; d.createObjectStore('cola',{keyPath:'id',autoIncrement:true}); d.createObjectStore('local',{keyPath:'folio'}); d.createObjectStore('guias',{keyPath:'folio'}); d.createObjectStore('kv'); };
+  r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); })); }
+async function tx(store, mode, fn){ const d=await idb(); return new Promise((res,rej)=>{ const t=d.transaction(store,mode); const out=fn(t.objectStore(store)); t.oncomplete=()=>res(out && 'result' in out ? out.result : undefined); t.onerror=()=>rej(t.error); }); }
+const kvGet = k => tx('kv','readonly',s=>s.get(k));
+const kvSet = (k,v) => tx('kv','readwrite',s=>s.put(v,k));
+
+/* ---------- inicio y sesión ---------- */
+async function init(){
+  if(!FIREBASE_CONFIG.projectId){ $('#setup').classList.remove('hidden'); return; }
+  firebase.initializeApp(FIREBASE_CONFIG);
+  db = firebase.firestore();
+  try { await firebase.auth().signInAnonymously(); }
+  catch(e){ $('#login').classList.remove('hidden'); $('#lgErr').textContent='No se pudo conectar: '+e.message; return; }
+  try {
+    const c = await db.collection('config').doc('general').get();
+    // solo se usa la configuración guardada si es de la escala de medición actual (calVer 2)
+    if(c.exists && c.data().calidad && c.data().calidad.calVer===S.cfg.calVer) Object.assign(S.cfg, c.data().calidad);
+    if(c.exists){ S.cfg.tipos=c.data().tipos||{}; S.cfg.conceptos=c.data().conceptos||{}; }
+    const u = await db.collection('usuarios').limit(1).get();
+    if(u.empty){
+      await db.collection('usuarios').doc(ADMIN_INICIAL.usuario).set({ nombre:'Administrador', rol:'admin', activo:true, debeCambiar:true, hash: await hashClave(ADMIN_INICIAL.usuario, ADMIN_INICIAL.clave), creado:TS() });
+    }
+    const ses = JSON.parse(localStorage.getItem('gd_ses')||'null');
+    if(ses){ const d=await db.collection('usuarios').doc(ses.id).get();
+      if(d.exists && d.data().activo!==false && d.data().hash===ses.hash){ return entrar(d.id, d.data()); } }
+  } catch(e){ console.error(e); }
+  $('#login').classList.remove('hidden');
+}
+async function login(){
+  const u=slug($('#lgUser').value), p=$('#lgPass').value; $('#lgErr').textContent='';
+  if(!u||!p){ $('#lgErr').textContent='Ingresa usuario y clave'; return; }
+  $('#lgBtn').disabled=true;
+  try{
+    const d=await db.collection('usuarios').doc(u).get();
+    const x=d.exists?d.data():null, h=await hashClave(u,p);
+    if(!x || x.hash!==h){ $('#lgErr').textContent='Usuario o clave incorrectos'; return; }
+    if(x.activo===false){ $('#lgErr').textContent='Usuario bloqueado. Contacta al administrador.'; return; }
+    localStorage.setItem('gd_ses', JSON.stringify({id:u, hash:h}));
+    $('#login').classList.add('hidden'); entrar(u,x);
+  } catch(e){ $('#lgErr').textContent='Error: '+e.message; }
+  finally{ $('#lgBtn').disabled=false; }
+}
+$('#lgBtn').onclick=login;
+$('#lgPass').addEventListener('keydown',e=>{ if(e.key==='Enter') login(); });
+$('#outBtn').onclick=()=>{ localStorage.removeItem('gd_ses'); location.reload(); };
+
+const TABS = [
+  {id:'capturar', txt:'📷 Capturar', p:'capturar'},
+  {id:'importar', txt:'📥 Importar', p:'importar'},
+  {id:'guias', txt:'📋 Guías'},
+  {id:'dashboard', txt:'📊 Dashboard'},
+  {id:'pc', txt:'💻 PC / Descargas'},
+  {id:'admin', txt:'⚙️ Admin', p:'admin'}
+];
+async function entrar(id, x){
+  S.user = { id, nombre:x.nombre||id, rol:x.rol||'lector' };
+  $('#hdNombre').textContent=S.user.nombre; $('#hdRol').textContent=ROL_TXT[S.user.rol]||S.user.rol;
+  $('#app').classList.remove('hidden');
+  const tabs = TABS.filter(t=>!t.p || can(t.p));
+  $('#nav').innerHTML = tabs.map(t=>`<button data-tab="${t.id}">${t.txt}</button>`).join('');
+  $('#anRow').classList.toggle('hidden', !can('clasificar'));
+  rango('mes', false);
+  irTab(tabs[0].id);
+  if(x.debeCambiar) abrirClave(true);
+  await cargarLocal();
+  await sincronizarDatos();
+  actualizarCola(); procesarCola();
+  setInterval(()=>sincronizarDatos(true), 120000);
+  window.addEventListener('online', procesarCola);
+}
+function irTab(id){
+  document.querySelectorAll('main>section').forEach(s=>s.classList.add('hidden'));
+  $('#tab-'+id).classList.remove('hidden');
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on', b.dataset.tab===id));
+  $('#periodo').classList.toggle('hidden', !['guias','dashboard','pc'].includes(id));
+  S.tab=id;
+  if(id==='dashboard') renderDashboard();
+  if(id==='guias') renderListado();
+  if(id==='admin') { cargarUsuarios(); mostrarCfg(); }
+  if(id==='pc') { mostrarCarpeta(); infoLocal(); }
+}
+$('#nav').onclick=e=>{ const b=e.target.closest('button'); if(b) irTab(b.dataset.tab); };
+
+/* ---------- datos: caché local + sincronización incremental ---------- */
+async function cargarLocal(){
+  const arr = await tx('guias','readonly',s=>s.getAll()) || [];
+  S.todas = new Map(arr.map(g=>[g.folio,g]));
+  aplicarRango();
+}
+async function sincronizarDatos(silencioso){
+  if(!navigator.onLine) return;
+  try{
+    const last = await kvGet('lastTs');
+    let q;
+    if(!last){ const h=new Date(); h.setMonth(h.getMonth()-(S.cfg.meses||12)); q=db.collection('guias').where('fecha','>=',ymd(h)); if(!silencioso) toast('Descargando guías por primera vez en este dispositivo…'); }
+    else q=db.collection('guias').where('actualizado','>',firebase.firestore.Timestamp.fromMillis(last));
+    const snap = await q.get({source:'server'});
+    let max = last||0; const docs=[];
+    snap.forEach(d=>{ const x=d.data(); x.folio=Number(x.folio||d.id); const t=x.actualizado&&x.actualizado.toMillis?x.actualizado.toMillis():0; if(t>max) max=t; delete x.actualizado; if(x.importado&&x.importado.toMillis) x.importado=x.importado.toMillis(); docs.push(x); });
+    if(docs.length){
+      await tx('guias','readwrite',s=>{ docs.forEach(g=>s.put(g)); });
+      docs.forEach(g=>S.todas.set(g.folio,g));
+      aplicarRango();
+    }
+    await kvSet('lastTs', max || Date.now()-60000);
+  } catch(e){ console.error(e); if(!silencioso) toast('No se pudo actualizar: '+e.message,'err'); }
+}
+function localSet(g){ S.todas.set(g.folio,g); tx('guias','readwrite',s=>s.put(g)).catch(()=>{}); aplicarRango(); }
+
+/* ---------- período ---------- */
+function rango(tipo, aplicar=true){
+  const d=new Date(); let a,b=hoy();
+  if(tipo==='mes') a=ymd(new Date(d.getFullYear(),d.getMonth(),1));
+  if(tipo==='ant'){ a=ymd(new Date(d.getFullYear(),d.getMonth()-1,1)); b=ymd(new Date(d.getFullYear(),d.getMonth(),0)); }
+  if(tipo==='90'){ const x=new Date(); x.setDate(x.getDate()-89); a=ymd(x); }
+  if(tipo==='anio') a=`${d.getFullYear()}-01-01`;
+  $('#fDesde').value=a; $('#fHasta').value=b;
+  if(aplicar) aplicarRango();
+}
+document.querySelectorAll('[data-rg]').forEach(b=>b.onclick=()=>rango(b.dataset.rg));
+$('#fAplicar').onclick=()=>aplicarRango();
+/* Transportista para estadísticas: "RetiradoPor" es texto libre (miles de variantes), así que se agrupa
+   por PATENTE. Cada patente frecuente toma el nombre de chofer más repetido; las ocasionales
+   (retiro de cliente) van a "Otros / retira cliente". */
+const MIN_GUIAS_PATENTE=10;
+const limpiaPat = p => String(p||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+function indexarTransportistas(){
+  const porPat=new Map();
+  for(const g of S.todas.values()){ const p=limpiaPat(g.patente); if(!p) continue;
+    const o=porPat.get(p)||{n:0,nombres:new Map()}; o.n++;
+    const nom=String(g.transportista||'').replace(/\s*\(.*$/,'').replace(/\s+/g,' ').trim();
+    if(nom) o.nombres.set(nom,(o.nombres.get(nom)||0)+1); porPat.set(p,o); }
+  S.trIdx=new Map();
+  for(const [p,o] of porPat){ if(o.n<MIN_GUIAS_PATENTE) continue;
+    const nom=[...o.nombres.entries()].sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+    S.trIdx.set(p, nom?`${nom} · ${p}`:p); }
+}
+function grupoTr(g){
+  const p=limpiaPat(g.patente);
+  if(!p) return g.transportista ? 'Otros / retira cliente' : '(sin transportista)';
+  return (S.trIdx&&S.trIdx.get(p)) || 'Otros / retira cliente';
+}
+function aplicarRango(){
+  indexarTransportistas();
+  const a=$('#fDesde').value, b=$('#fHasta').value;
+  S.guias = new Map();
+  for(const g of S.todas.values()){ if(g.eliminado) continue; if(g.fecha>=a && g.fecha<=b) S.guias.set(g.folio,g); }
+  $('#rgInfo').textContent = `${fmtN(S.guias.size)} guías en el período`;
+  if(S.tab==='guias') renderListado();
+  if(S.tab==='dashboard') renderDashboard();
+}
+/* Tipos de guía. "requiereFoto" decide si una guía sin foto cuenta como faltante (editable en Admin).
+   Las guías del Excel toman el tipo según su columna Concepto (mapeo editable en Admin; 1 = venta). */
+const TIPOS = {
+  venta:    { nombre:'Despacho venta',          requiereFoto:true  },
+  factant:  { nombre:'Facturación anticipada',  requiereFoto:true  },
+  traslado: { nombre:'Traslado',                requiereFoto:false },
+  otro:     { nombre:'Otro',                    requiereFoto:true  }
+};
+// foto subida de un folio que no está en el Excel ni fue clasificado
+const sinClasificar = g => !g.emitida && !g.tipo && !g.anulada;
+const tipoDe = g => g.tipo || (sinClasificar(g) ? 'pendiente' : (S.cfg.conceptos||{})[String(g.concepto??'')] || (g.concepto!=null && String(g.concepto)!=='1' ? 'otro' : 'venta'));
+const tipoNombre = t => t==='pendiente' ? 'Por clasificar (con foto)' : (TIPOS[t]||TIPOS.otro).nombre;
+const requiereFoto = g => { const t=tipoDe(g); if(t==='pendiente') return true; const c=(S.cfg.tipos||{})[t]; return c && 'requiereFoto' in c ? !!c.requiereFoto : (TIPOS[t]||TIPOS.otro).requiereFoto; };
+const estado = g => g.anulada ? 'anulada' : g.foto ? 'respaldada' : !requiereFoto(g) ? 'norequiere' : 'faltante';
+
+/* ---------- análisis de legibilidad ---------- */
+function dims(el){ return { w: el.naturalWidth||el.width, h: el.naturalHeight||el.height }; }
+/* Legibilidad, medida igual en cualquier navegador y tamaño de foto:
+   - la imagen se normaliza a 1000 px de ancho (dibujo a 2000 px + promedio 2x2);
+   - contraste = papel (mediana) − tinta (percentil 3);
+   - nitidez = energía de bordes (laplaciano) relativa al contraste.
+   Calibrado con guías reales: nítida ≈ 35, desenfoque leve aún legible ≈ 9, ilegible ≤ 4. */
+function analizar(el){
+  const {w,h}=dims(el), W=1000, H=Math.max(2,Math.round(h*W/w));
+  const c=document.createElement('canvas'); c.width=2*W; c.height=2*H;
+  const ctx=c.getContext('2d',{willReadFrequently:true}); ctx.imageSmoothingQuality='high'; ctx.drawImage(el,0,0,2*W,2*H);
+  const d=ctx.getImageData(0,0,2*W,2*H).data; c.width=c.height=0;
+  const n=W*H, g=new Float32Array(n), hist=new Uint32Array(256);
+  let s=0, br=0;
+  const lum=k=>.299*d[k]+.587*d[k+1]+.114*d[k+2];
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+    const k=((2*y)*2*W+2*x)*4, k2=k+2*W*4;
+    const v=(lum(k)+lum(k+4)+lum(k2)+lum(k2+4))/4;
+    const i=y*W+x; g[i]=v; s+=v; hist[Math.min(255,Math.round(v))]++; if(v>=252) br++;
+  }
+  const pct=p=>{ const lim=n*p; let a=0; for(let v=0;v<256;v++){ a+=hist[v]; if(a>=lim) return v; } return 255; };
+  const contraste=pct(.5)-pct(.03);
+  let ls=0, ls2=0, m=0;
+  for(let y=1;y<H-1;y++) for(let x=1;x<W-1;x++){ const i=y*W+x; const L=4*g[i]-g[i-1]-g[i+1]-g[i-W]-g[i+W]; ls+=L; ls2+=L*L; m++; }
+  const lm=ls/m, lapStd=Math.sqrt(Math.max(0,ls2/m-lm*lm));
+  return { nitidez: lapStd/Math.max(contraste,1)*100, brillo: s/n, contraste, reflejo: br/n*100, ancho:w, alto:h };
+}
+function evaluar(q, origen){
+  const c=S.cfg, m=[];
+  if(Math.max(q.ancho,q.alto) < c.minLado) m.push(`Resolución baja (${Math.max(q.ancho,q.alto)} px; mínimo ${c.minLado})`);
+  if(q.nitidez < c.minNitidez) m.push('Foto borrosa o movida: el texto no se lee nítido');
+  if(q.brillo < c.minBrillo) m.push('Foto muy oscura');
+  if(q.contraste < c.minContraste) m.push('Poco contraste: el texto se ve lavado o la foto está muy oscura');
+  return m;
+}
+function htmlCalidad(q, mot){
+  const c=S.cfg;
+  const fila=(nom,val,min,max,ok)=>`<span>${nom}</span><div class="bar"><i style="width:${Math.max(4,Math.min(100,val/max*100))}%;background:${ok?'var(--green)':'var(--red)'}"></i></div><span>${ok?'✔':'✖'} ${Math.round(val)}</span>`;
+  return `<div class="qbox ${mot.length?'bad':'ok'}"><b>${mot.length?'❌ Foto NO legible':'✅ Foto legible'}</b>
+    ${mot.map(x=>`<div>• ${esc(x)}</div>`).join('')}
+    <div class="qgrid">
+      ${fila('Nitidez',q.nitidez,c.minNitidez,40,q.nitidez>=c.minNitidez)}
+      ${fila('Brillo',q.brillo,c.minBrillo,255,q.brillo>=c.minBrillo)}
+      ${fila('Contraste',q.contraste,c.minContraste,160,q.contraste>=c.minContraste)}
+      ${fila('Resolución',Math.max(q.ancho,q.alto),c.minLado,4000,Math.max(q.ancho,q.alto)>=c.minLado)}
+    </div></div>`;
+}
+
+/* ---------- imágenes ---------- */
+async function archivoAImagenes(file){
+  if(file.type==='application/pdf' || /\.pdf$/i.test(file.name)){
+    const pdf = await pdfjsLib.getDocument({data: await file.arrayBuffer()}).promise;
+    const out=[];
+    for(let p=1;p<=Math.min(pdf.numPages,60);p++){
+      const pg=await pdf.getPage(p), v1=pg.getViewport({scale:1}), vp=pg.getViewport({scale:2200/Math.max(v1.width,v1.height)});
+      const c=document.createElement('canvas'); c.width=vp.width; c.height=vp.height;
+      const ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
+      await pg.render({canvasContext:ctx, viewport:vp}).promise; out.push(c);
+    }
+    return out;
+  }
+  const img=new Image(); img.src=URL.createObjectURL(file);
+  try{ await img.decode(); } catch(e){ throw new Error('Formato de imagen no soportado en este navegador'); }
+  return [img];
+}
+function comprimir(el, max=2000, q=.82){
+  const {w,h}=dims(el), s=Math.min(1,max/Math.max(w,h));
+  const c=document.createElement('canvas'); c.width=Math.round(w*s); c.height=Math.round(h*s);
+  const ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(el,0,0,c.width,c.height);
+  return new Promise(r=>c.toBlob(r,'image/jpeg',q));
+}
+function miniatura(el){ const {w,h}=dims(el), s=180/Math.max(w,h); const c=document.createElement('canvas'); c.width=w*s; c.height=h*s; c.getContext('2d').drawImage(el,0,0,c.width,c.height); return c.toDataURL('image/jpeg',.7); }
+const thumb = url => url.replace('/upload/','/upload/w_200,c_limit,q_auto/');
+
+/* ---------- OCR: lectura de folio y NV desde la foto ---------- */
+let _tess=null, _worker=null;
+function cargarTesseract(){
+  return _tess || (_tess = new Promise((res,rej)=>{ const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+    s.onload=res; s.onerror=()=>{ _tess=null; rej(new Error('No se pudo cargar el lector OCR (revisa la conexión)')); };
+    document.head.appendChild(s); }));
+}
+async function ocrWorker(){ await cargarTesseract(); if(!_worker) _worker = await Tesseract.createWorker('spa'); return _worker; }
+let _ocrCola=Promise.resolve();
+function leerGuia(el){
+  // en fila: un OCR a la vez para no saturar el celular
+  const p=_ocrCola.then(()=>_leerGuia(el)); _ocrCola=p.catch(()=>{}); return p;
+}
+async function _leerGuia(el){
+  // El folio y la NV están en la parte superior de la guía: se lee primero el 50% superior (3 veces más rápido)
+  // y solo si no aparece el folio se lee la hoja completa.
+  const {w,h}=dims(el), s=Math.min(1,1800/Math.max(w,h));
+  const W=Math.round(w*s), H=Math.round(h*s);
+  const lienzo=(frac)=>{ const c=document.createElement('canvas'); c.width=W; c.height=Math.round(H*frac);
+    const ctx=c.getContext('2d'); ctx.filter='grayscale(1) contrast(1.5)'; ctx.drawImage(el,0,0,w,h*frac,0,0,W,c.height); return c; };
+  const wk=await ocrWorker();
+  let r=parsearOCR((await wk.recognize(lienzo(0.5))).data.text||'');
+  if(r.folio && r.conf==='alta') return r;
+  const r2=parsearOCR((await wk.recognize(lienzo(1))).data.text||'');
+  return (r2.folio && (!r.folio || r2.conf==='alta')) ? r2 : r;
+}
+// un solo dígito distinto, sobrante o faltante = error típico del lector (6↔8, una firma que cruza el número),
+// no una NV distinta
+const casiIgual=(a,b,max=1)=>{ a=String(a); b=String(b); if(a===b) return true;
+  if(Math.abs(a.length-b.length)>max) return false;
+  let prev=[...Array(b.length+1).keys()];   // distancia de edición (Levenshtein)
+  for(let i=1;i<=a.length;i++){ const cur=[i];
+    for(let j=1;j<=b.length;j++) cur[j]=Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+(a[i-1]===b[j-1]?0:1));
+    prev=cur; }
+  return prev[b.length]<=max; };
+function rangoFolios(){
+  if(S._rango && S._rango.n===S.todas.size) return S._rango.r;
+  const fs=[]; let fmax='';
+  for(const g of S.todas.values()) if(g.emitida){ fs.push(g.folio); if(g.fecha>fmax) fmax=g.fecha; }
+  fs.sort((a,b)=>a-b);
+  // descarta folios aislados (ej. 0 o 1 de prueba): se toma la serie desde el percentil 1.
+  // Tope: el último folio emitido + lo que se alcanza a emitir desde esa fecha (~60 al día, con holgura).
+  let r=null;
+  if(fs.length>20){ const dias=Math.max(0,Math.round((new Date(hoy())-new Date(fmax))/864e5));
+    r={min:fs[Math.floor(fs.length*0.01)], max:fs[fs.length-1], tope:fs[fs.length-1]+150+100*dias}; }
+  S._rango={n:S.todas.size, r}; return r;
+}
+function parsearOCR(txt){
+  let T=txt.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  T=T.replace(/\b\d{1,2}\.?\d{3}\.?\d{3}\s*-\s*[\dK]\b/g,' ');            // fuera RUTs
+  T=T.replace(/\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b/g,' ');                // fuera fechas
+  const num = s => Number(String(s).replace(/\D/g,''));
+  const rxF=[], rxNV=[];
+  for(const m of T.matchAll(/GUIA\s*DE\s*DESPACHO[\s\S]{0,70}?(\d[\d.]{2,10}\d)/g)) rxF.push(num(m[1]));
+  for(const m of T.matchAll(/(?:FOLIO|NRO\.?|NUMERO)\s*[:.#]?\s*(\d[\d.]{2,10}\d)/g)) rxF.push(num(m[1]));
+  // "N° 211634": el lector suele ver el ° como 9, O, 0, comillas o asterisco
+  for(const m of T.matchAll(/\bN\s*\S?\s+(\d{1,3}(?:\.\d{3})+|\d{5,8})\b/g)) rxF.push(num(m[1]));
+  for(const m of T.matchAll(/(?:\bN\s*\.?\s*V\b\.?|NOTA\s*(?:DE\s*)?VENTA)\s*[:N°ºO#.\s]*?(\d{3,8})/g)) rxNV.push(num(m[1]));
+  const todos=[...T.matchAll(/\b\d{1,3}(?:\.\d{3})+\b|\b\d{3,9}\b/g)].map(m=>num(m[0])).filter(n=>n>=100);
+  const uniq=a=>[...new Set(a.filter(Boolean))];
+  const cand=uniq([...rxF, ...todos]);
+  // 1) el número que coincide con una guía emitida importada es el más confiable
+  const conocidos=cand.filter(n=>{ const g=S.todas.get(n); return g && g.emitida; });
+  let folio=null, conf='baja';
+  // rango plausible del correlativo según las guías conocidas (sirve para guías que no vienen en el Excel)
+  const R=rangoFolios(), enRango=n=>R && n>=R.min && n<=R.tope && !rxNV.includes(n);
+  if(conocidos.length){ folio = conocidos.find(n=>rxF.includes(n)) || conocidos[0]; conf='alta'; }
+  else if(rxF.some(enRango)){ folio=rxF.find(enRango); conf='media'; }
+  else if(R && cand.filter(enRango).length===1){ folio=cand.find(enRango); conf='media'; }
+  else if(rxF.length){ folio=rxF[0]; conf='baja'; }
+  // 2) Cruce con la NV.
+  // calidad del calce entre la NV de una guía y lo leído: 2 = exacta, 1 = un error, 0.5 = dos errores, 0 = no calza
+  const calce = nvX => { const v=num(nvX); if(!v) return 0;
+    if(todos.includes(v)||rxNV.includes(v)) return 2;
+    if(rxNV.some(n=>casiIgual(n,v,1))) return 1;
+    if(rxNV.some(n=>casiIgual(n,v,2))) return 0.5; return 0; };
+  let nv=null, nvOk=null, alternativa=null;
+  const g=folio?S.todas.get(folio):null, conocido=!!(g&&g.emitida);
+  const q = conocido && g.nv ? calce(g.nv) : null;
+  // ¿hay una guía con folio a un dígito del leído cuya NV aparece EXACTA en la foto?
+  let vecino=null;
+  if(folio && q!==2 && rxNV.length) for(const x of S.todas.values()){
+    if(x.emitida && x.folio!==folio && x.nv && casiIgual(x.folio,folio) && calce(x.nv)===2){ vecino=x; break; } }
+  if(q===2){ nv=num(g.nv); nvOk=true; }
+  else if(vecino){
+    // Dos explicaciones posibles: el folio se leyó con un dígito malo, o la NV se leyó mal y justo
+    // coincide con la de otra guía. No se decide en silencio: queda "por verificar" con ambas opciones.
+    if(!conocido || q===0){ alternativa=folio; folio=vecino.folio; nv=num(vecino.nv); nvOk=true; }
+    else { alternativa=vecino.folio; nv=num(g.nv); nvOk=true; }
+    conf='duda';
+    // Excepción: si el folio leído es imposible (fuera del correlativo) y la NV exacta apunta a una guía real,
+    // el folio leído era un error de lectura: se corrige sin preguntar.
+    if(!conocido && R && !enRango(alternativa)){ conf='alta'; alternativa=null; }
+  }
+  else if(q>0){ nv=num(g.nv); nvOk=true; }
+  else if(q===0 && rxNV.length){ nv=rxNV[0]; nvOk=false; }
+  else if(rxNV.length) nv=rxNV[0];
+  if(nvOk===false) conf='media';
+  // nombre del cliente (sirve cuando la guía no viene en el Excel)
+  let cliente=null;
+  const mc=T.match(/NOMBRE\s*[:;.]?\s*[^A-Z0-9\n]*([^\n]+?)\s*(?:FECHA|R\s*\.?\s*U\s*\.?\s*T|\n|$)/);
+  if(mc){ const c=mc[1].replace(/[^A-Z0-9.&\- ]/g,' ').replace(/\s+/g,' ').trim().replace(/(\s+[A-Z0-9\-]{1,2})+$/,'').trim(); if(c.length>=3) cliente=c; }
+  return { folio, nv, conf, nvOk, cliente, alternativa, otros: cand.filter(n=>n!==folio).slice(0,8) };
+}
+function htmlOCR(r, folioEscrito, verificado){
+  if(!r) return '';
+  if(r.error) return `<div class="ocr bad">⚠️ ${esc(r.error)}. Completa el folio a mano.</div>`;
+  if(r.leyendo) return `<div class="ocr">🔍 Leyendo folio y NV de la foto… (la primera vez tarda un poco más)</div>`;
+  const g=r.folio?S.todas.get(r.folio):null;
+  let cls='ok', h='';
+  if(!r.folio){ cls='warn'; h=`No pude identificar el folio. ${r.otros.length?`Números vistos (toca para usar): ${r.otros.map(n=>`<button class="pill" data-usar="${n}">${n}</button>`).join('')}`:''}`; }
+  else if(r.conf==='duda' && verificado && (folioEscrito===r.folio||folioEscrito===r.alternativa)){
+    h=`✔ Folio confirmado por ti: <b>${folioEscrito}</b>`; const x=S.todas.get(folioEscrito); if(x&&x.cliente) h+=`<br><span class="muted">${esc(x.cliente)} · 🚚 ${esc(x.transportista||'—')}</span>`;
+  }
+  else if(r.conf==='duda'){
+    cls='warn';
+    const op=f=>{ const x=S.todas.get(f); return `<button class="pill" data-usar="${f}">${f}${x&&x.cliente?` · ${esc(x.cliente.slice(0,22))}`:x&&x.emitida?'':' (no está en Excel)'}</button>`; };
+    h=`⚠️ <b>Verifica el folio</b>: la foto puede ser la guía <b>${r.folio}</b> o la <b>${r.alternativa}</b> (folios y NV muy parecidos). Mira el N° impreso arriba a la derecha y toca el correcto:<br>${op(r.folio)} ${op(r.alternativa)}`;
+  }
+  else {
+    h=`Folio leído: <b>${r.folio}</b> ${r.conf==='alta'?'<span class="chip r">coincide con guía emitida</span>':(g&&g.emitida)?'<span class="chip w">revisa: la NV no calza</span>':'<span class="chip w">no está en el Excel: quedará por clasificar</span>'}`;
+    if(g && g.cliente) h+=`<br><span class="muted">${esc(g.cliente)} · 🚚 ${esc(g.transportista||'—')}</span>`;
+    else if(r.cliente) h+=`<br><span class="muted">Cliente leído: ${esc(r.cliente)}</span>`;
+    if(folioEscrito && folioEscrito!==r.folio){ cls='bad'; h+=`<br>⚠️ Escribiste <b>${folioEscrito}</b> pero la foto dice <b>${r.folio}</b>. <button class="pill" data-usar="${r.folio}">Usar ${r.folio}</button>`; }
+    else if(r.conf!=='alta') cls='warn';
+  }
+  if(r.conf==='duda'){}
+  else if(r.nv) h+=`<br>NV leída: <b>${r.nv}</b> ${r.nvOk===true?'<span class="chip r">coincide con la NV de la guía</span>':r.nvOk===false?`<span class="chip f">la guía tiene NV ${esc(g&&g.nv)}</span>`:''}`;
+  else if(g&&g.nv) h+=`<br>NV de la guía: ${esc(g.nv)} <span class="muted">(no se leyó en la foto)</span>`;
+  if(r.nvOk===false && cls==='ok') cls='warn';
+  return `<div class="ocr ${cls}">${h}</div>`;
+}
+
+/* ---------- guardar en nube ---------- */
+async function subirCloudinary(blob, folio, fecha){
+  const fd=new FormData();
+  fd.append('file', blob, `GD_${pad(folio)}.jpg`);
+  fd.append('upload_preset', CLOUDINARY.uploadPreset);
+  fd.append('folder', `${CLOUDINARY.folder}/${(fecha||hoy()).slice(0,7)}`);
+  fd.append('public_id', `GD_${pad(folio)}_${Date.now()}`);
+  const r=await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY.cloudName}/image/upload`,{method:'POST',body:fd});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error('Cloudinary: '+((j.error&&j.error.message)||r.status));
+  return j;
+}
+// modo: 'reemplazar' (la foto pasa a ser la principal y las anteriores quedan en historial)
+//       'agregar'    (se suma como página adicional; si la guía no tiene foto, queda como principal)
+async function guardarGuia(folio, blob, q, origen, por, ocr, modo='reemplazar'){
+  folio=Number(folio);
+  const FV=firebase.firestore.FieldValue;
+  const ref=db.collection('guias').doc(String(folio));
+  const snap=await ref.get(); const prev=snap.exists?snap.data():{};
+  const fecha=prev.fecha || fechaEstimada(folio);
+  const up=await subirCloudinary(blob, folio, fecha);
+  const foto={ url:up.secure_url, publicId:up.public_id, bytes:up.bytes, ancho:up.width, alto:up.height,
+    nitidez:Math.round(q.nitidez), origen, por:(por&&por.nombre)||S.user.nombre, porId:(por&&por.id)||S.user.id, fechaHora:new Date().toISOString() };
+  if(ocr){ foto.ocrFolio=ocr.folio||null; foto.ocrNV=ocr.nv||null; }
+  const data={ folio, fecha, eliminado:false, actualizado:TS() };
+  if(!prev.nv && ocr && ocr.nv) data.nv=String(ocr.nv);
+  if(!prev.cliente && ocr && ocr.cliente) data.cliente=ocr.cliente;
+  if(ocr && ocr.tipo && !prev.emitida && !prev.tipo){ data.tipo=ocr.tipo; data.clasificadoPor=(por&&por.nombre)||S.user.nombre; data.clasificadoEn=new Date().toISOString(); }
+  const loc={...prev};
+  if(modo==='agregar' && prev.foto){
+    data.paginas=FV.arrayUnion(foto);
+    loc.paginas=[...(prev.paginas||[]), foto];
+  } else {
+    data.foto=foto; loc.foto=foto;
+    const viejas=[prev.foto, ...(prev.paginas||[])].filter(Boolean);
+    if(viejas.length){ data.fotosAnteriores=FV.arrayUnion(...viejas); data.paginas=[]; loc.fotosAnteriores=[...(prev.fotosAnteriores||[]),...viejas]; loc.paginas=[]; }
+  }
+  await ref.set(data,{merge:true});
+  Object.assign(loc, {folio, fecha, eliminado:false}); for(const k of ['nv','cliente','tipo','clasificadoPor','clasificadoEn']) if(data[k]) loc[k]=data[k];
+  delete loc.actualizado; if(loc.importado&&loc.importado.toMillis) loc.importado=loc.importado.toMillis();
+  localSet(loc);
+  guardarCopiaLocal(folio, blob).catch(()=>{});
+  return loc;
+}
+const paginasDe = g => g && g.foto ? [g.foto, ...(g.paginas||[])] : [];
+const nomPag = (folio, i) => `GD_${pad(folio)}${i?`_p${i+1}`:''}.jpg`;
+async function guardarCopiaLocal(folio, blob){
+  await tx('local','readwrite',s=>s.put({folio:`${folio}_${Date.now()}`, blob, ts:Date.now()}));
+  const all=await tx('local','readonly',s=>s.getAllKeys());
+  if(all.length>200){ const items=await tx('local','readonly',s=>s.getAll()); items.sort((a,b)=>a.ts-b.ts); const del=items.slice(0,items.length-200); await tx('local','readwrite',s=>del.forEach(i=>s.delete(i.folio))); }
+}
+async function encolar(folio, blob, q, origen, ocr, modo){
+  await tx('cola','readwrite',s=>s.add({folio:Number(folio), blob, q, origen, ocr:ocr||null, modo:modo||'reemplazar', por:{id:S.user.id,nombre:S.user.nombre}, ts:Date.now()}));
+  actualizarCola();
+}
+async function actualizarCola(){ const n=(await tx('cola','readonly',s=>s.count()))||0; $('#colaN').textContent=n; $('#colaBtn').classList.toggle('hidden',!n); }
+let procesando=false;
+async function procesarCola(){
+  if(procesando || !navigator.onLine || !S.user) return; procesando=true;
+  try{ const items=await tx('cola','readonly',s=>s.getAll())||[];
+    for(const it of items){ try{ await guardarGuia(it.folio,it.blob,it.q,it.origen,it.por,it.ocr,it.modo); await tx('cola','readwrite',s=>s.delete(it.id)); toast(`Guía ${it.folio} subida (estaba pendiente)`,'ok'); } catch(e){ break; } }
+  } finally{ procesando=false; actualizarCola(); }
+}
+$('#colaBtn').onclick=()=>{ toast('Hay guías guardadas en este celular esperando señal. Se suben solas al volver la conexión.'); procesarCola(); };
+
+/* ---------- CAPTURAR ---------- */
+async function infoFolio(){
+  // conserva lo que el usuario ya eligió en los selectores al volver a pintar
+  const prev={tipo:$('#cpTipo')?.value, modo:$('#cpModo')?.value};
+  await pintarInfoFolio();
+  if(prev.tipo && $('#cpTipo')) $('#cpTipo').value=prev.tipo;
+  if(prev.modo && $('#cpModo')) $('#cpModo').value=prev.modo;
+}
+async function pintarInfoFolio(){
+  const f=Number($('#cpFolio').value); const el=$('#cpInfo');
+  if(!f){ el.textContent=''; return; }
+  let g=S.todas.get(f);
+  if(!g && navigator.onLine){ try{ const d=await db.collection('guias').doc(String(f)).get(); if(d.exists) g=d.data(); }catch(e){} }
+  const selTipo = `<label style="margin-top:6px">Tipo de guía (no viene en el Excel)</label><select id="cpTipo"><option value="">Sin clasificar por ahora</option>${Object.entries(TIPOS).filter(([k])=>k!=='venta').map(([k,v])=>`<option value="${k}">${esc(v.nombre)}</option>`).join('')}<option value="venta">Despacho venta</option></select>`;
+  if(!g || g.eliminado){ el.innerHTML='<span class="chip w">Este folio no está en el Excel de guías</span>'+selTipo; return; }
+  const np=paginasDe(g).length;
+  el.innerHTML = `${esc(g.cliente||'Cliente sin dato')} · 🚚 ${esc(g.transportista||'—')} · NV ${esc(g.nv||'—')} · ${esc(g.fecha||'')}`
+    + (g.tipo&&!g.emitida?` <span class="chip">${esc(tipoNombre(g.tipo))}</span>`:'')
+    + (sinClasificar(g)?selTipo:'')
+    + (g.anulada?' <span class="chip a">ANULADA</span>':'')
+    + (np?`<div style="margin-top:6px"><span class="chip w">Ya tiene ${np} foto${np>1?'s':''}</span>
+      <select id="cpModo" style="margin-top:4px"><option value="agregar">Agregar esta foto como página adicional (otra copia)</option><option value="reemplazar">Reemplazar la foto existente (queda en historial)</option></select></div>`:'');
+}
+$('#cpFolio').addEventListener('change',infoFolio);
+$('#cpFolio').addEventListener('blur',infoFolio);
+const ocrActivo = () => $('#cpOcrOn').checked;
+$('#cpOcrOn').checked = localStorage.getItem('gd_ocr')!=='0';
+$('#cpOcrOn').onchange=e=>localStorage.setItem('gd_ocr', e.target.checked?'1':'0');
+function exigeFolio(){ if(!ocrActivo() && !$('#cpFolio').value){ toast('Escribe el folio o activa la lectura automática','err'); $('#cpFolio').focus(); return true; } return false; }
+$('#cpCam').onclick=()=>{ if(!exigeFolio()) $('#inCam').click(); };
+$('#cpFile').onclick=()=>{ if(!exigeFolio()) $('#inFile').click(); };
+$('#cpOcr').addEventListener('click',e=>{ const b=e.target.closest('[data-usar]'); if(!b) return; $('#cpFolio').value=b.dataset.usar; if(S.capt) S.capt.verificado=true; infoFolio(); pintarOCR(); });
+$('#cpFolio').addEventListener('input',()=>{ if(S.capt&&S.capt.ocr) pintarOCR(); });
+function pintarOCR(){ if(S.capt) $('#cpOcr').innerHTML=htmlOCR(S.capt.ocr, Number($('#cpFolio').value)||null, S.capt.verificado); }
+async function ocrCaptura(capt){
+  capt.ocr={leyendo:true}; pintarOCR();
+  try{ const r=await leerGuia(capt.el); if(S.capt!==capt) return; capt.ocr=r;
+    if(r.folio && !$('#cpFolio').value){ $('#cpFolio').value=r.folio; infoFolio(); }
+  } catch(e){ if(S.capt===capt) capt.ocr={error:e.message}; }
+  pintarOCR();
+}
+$('#cpRep').onclick=()=>$('#inCam').click();
+$('#inCam').onchange=e=>procesarCaptura(e.target.files[0],'camara');
+$('#inFile').onchange=e=>procesarCaptura(e.target.files[0],'archivo');
+async function procesarCaptura(file, origen){
+  if(!file) return;
+  $('#inCam').value=''; $('#inFile').value='';
+  try{
+    const els=await archivoAImagenes(file); const el=els[0];
+    const q=analizar(el), mot=evaluar(q,origen);
+    S.capt={el,q,mot,origen};
+    $('#cpImg').src = el.src || el.toDataURL('image/jpeg',.8);
+    $('#cpQ').innerHTML=htmlCalidad(q,mot);
+    $('#cpOcr').innerHTML='';
+    if(ocrActivo() && !mot.length) ocrCaptura(S.capt);
+    $('#cpPrev').classList.remove('hidden');
+    $('#cpSave').disabled=!!mot.length;
+    $('#cpForce').classList.toggle('hidden', !(mot.length && can('forzar')));
+    $('#cpPrev').scrollIntoView({behavior:'smooth',block:'start'});
+  } catch(e){ toast('No se pudo leer la imagen: '+e.message,'err'); }
+}
+async function guardarCaptura(){
+  const folio=Number($('#cpFolio').value);
+  if(!S.capt) return;
+  const ocr=S.capt.ocr;
+  if(ocr && ocr.leyendo && !folio){ toast('Espera un momento: estoy leyendo el folio de la foto'); return; }
+  if(!folio || folio<1){ toast('Escribe el folio de la guía','err'); $('#cpFolio').focus(); return; }
+  if(ocr && ocr.conf==='duda'){
+    if(folio!==ocr.folio && folio!==ocr.alternativa && !confirm(`La foto parece ser la guía ${ocr.folio} o la ${ocr.alternativa}, pero vas a guardarla como ${folio}. ¿Guardar igual?`)) return;
+    if((folio===ocr.folio||folio===ocr.alternativa) && !S.capt.verificado && !confirm(`¿Confirmas que el N° impreso en la guía es ${folio}? (la foto también podría ser la ${folio===ocr.folio?ocr.alternativa:ocr.folio})`)) return;
+  }
+  else if(ocr && ocr.folio && ocr.folio!==folio && !confirm(`La foto parece ser la guía ${ocr.folio}, pero vas a guardarla como ${folio}. ¿Guardar igual?`)) return;
+  if(ocr && ocr.nvOk===false && !confirm(`La NV leída en la foto (${ocr.nv}) no coincide con la NV de la guía ${folio}. ¿Guardar igual?`)) return;
+  const ocrDatos = ocr && !ocr.leyendo && !ocr.error ? {folio:ocr.folio, nv:ocr.conf==='duda'?null:ocr.nv, cliente:ocr.cliente} : {};
+  if($('#cpTipo') && $('#cpTipo').value) ocrDatos.tipo=$('#cpTipo').value;
+  const g=S.todas.get(folio);
+  const modo = (g && g.foto) ? (($('#cpModo')&&$('#cpModo').value)||'agregar') : 'reemplazar';
+  $('#cpSave').disabled=true; $('#cpForce').disabled=true;
+  const blob=await comprimir(S.capt.el);
+  const {q,origen}=S.capt;
+  try{
+    if(!navigator.onLine) throw new TypeError('offline');
+    toast('Subiendo guía '+folio+'…');
+    await guardarGuia(folio,blob,q,origen,null,ocrDatos,modo);
+    registrarLog(folio, blob, true);
+    toast(`Guía ${folio} guardada ✔`,'ok');
+  } catch(e){
+    if(e instanceof TypeError || !navigator.onLine){ await encolar(folio,blob,q,origen,ocrDatos,modo); registrarLog(folio, blob, false); toast('Sin conexión: quedó guardada en el celular y se subirá sola','',5000); }
+    else { toast('Error al guardar: '+e.message,'err',6000); $('#cpSave').disabled=false; $('#cpForce').disabled=false; return; }
+  }
+  S.capt=null; $('#cpOcr').innerHTML=''; $('#cpPrev').classList.add('hidden'); $('#cpFolio').value=''; $('#cpInfo').textContent=''; $('#cpForce').disabled=false;
+  $('#cpFolio').focus();
+}
+$('#cpSave').onclick=guardarCaptura;
+$('#cpForce').onclick=()=>{ if(confirm('La foto no cumple la legibilidad. ¿Guardar de todas formas?')) guardarCaptura(); };
+function registrarLog(folio, blob, subida){
+  S.log.unshift({folio, blob, subida, hora:new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'})});
+  $('#cpLog').innerHTML = S.log.slice(0,30).map((l,i)=>`<div class="gi"><div class="gd"><b>GD ${l.folio}</b> <span class="chip ${l.subida?'r':'w'}">${l.subida?'En la nube':'Pendiente de señal'}</span><div class="muted">${l.hora}</div></div><div class="ga"><button class="btn sec sm" data-cel="${i}">📲 Guardar en celular</button></div></div>`).join('');
+}
+$('#cpLog').onclick=e=>{ const b=e.target.closest('[data-cel]'); if(b){ const l=S.log[+b.dataset.cel]; guardarEnCelular(l.blob, `GD_${pad(l.folio)}.jpg`); } };
+
+/* ---------- IMPORTAR FOTOS / PDF ---------- */
+$('#imBtn').onclick=()=>$('#inImp').click();
+// Recorre un archivo (foto o PDF) página por página sin guardar todas en memoria.
+async function recorrerPaginas(file, onPagina){
+  if(file.type==='application/pdf' || /\.pdf$/i.test(file.name)){
+    const pdf = await pdfjsLib.getDocument({data: await file.arrayBuffer()}).promise;
+    for(let p=1;p<=pdf.numPages;p++){
+      const pg=await pdf.getPage(p), v1=pg.getViewport({scale:1}), vp=pg.getViewport({scale:2200/Math.max(v1.width,v1.height)});
+      const c=document.createElement('canvas'); c.width=vp.width; c.height=vp.height;
+      const ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
+      await pg.render({canvasContext:ctx, viewport:vp}).promise;
+      await onPagina(c, p, pdf.numPages);
+      c.width=c.height=0; pg.cleanup();
+    }
+    return;
+  }
+  const [el]=await archivoAImagenes(file); await onPagina(el,1,1);
+}
+let _impLeyendo=false;
+$('#inImp').onchange=async e=>{
+  const files=[...e.target.files]; e.target.value='';
+  for(const f of files){
+    try{
+      const num=(f.name.replace(/\.[^.]+$/,'').match(/\d{3,9}/g)||[]).sort((a,b)=>b.length-a.length)[0];
+      await recorrerPaginas(f, async (el,i,n)=>{
+        prog($('#imProg'), i/n); if(n>1) $('#imInfo').textContent=`Leyendo ${f.name}: página ${i} de ${n}…`;
+        const q=analizar(el), mot=evaluar(q,'importada');
+        const blob=await comprimir(el);
+        S.imp.push({ id:Math.random().toString(36).slice(2), blob, q, mot, nombre:f.name+(n>1?` (pág. ${i})`:''), folio: n===1&&num?Number(num):'', sel:!mot.length, mini:miniatura(el), est:'' });
+        if(i%5===0||i===n) renderImp();
+      });
+    } catch(err){ toast(`${f.name}: ${err.message}`,'err'); }
+  }
+  prog($('#imProg'),null); $('#imInfo').textContent='';
+  renderImp();
+  if(_impLeyendo) return; _impLeyendo=true;
+  try{
+    let it;
+    while((it=S.imp.find(x=>!x.ocr && !x.mot.length))){
+      it.ocr={leyendo:true}; renderImp();
+      const pend=S.imp.filter(x=>!x.ocr && !x.mot.length).length;
+      $('#imInfo').textContent = `Leyendo folios… quedan ${pend+1}`;
+      try{ const bm=await createImageBitmap(it.blob); const r=await leerGuia(bm); bm.close&&bm.close(); it.ocr=r; if(r.folio && !it.folio) it.folio=r.folio; }
+      catch(err){ it.ocr={error:err.message}; }
+      if(S.imp.includes(it)) renderImp();
+    }
+  } finally { _impLeyendo=false; $('#imInfo').textContent=''; }
+};
+function chipOCR(it){
+  const r=it.ocr; if(!r) return '';
+  if(r.leyendo) return '<div class="muted">🔍 leyendo folio y NV…</div>';
+  if(r.error) return '<div class="muted">OCR no disponible</div>';
+  const f=Number(it.folio)||null; let h='';
+  if(r.conf==='duda' && !it.verificado){
+    const otro = f===r.folio ? r.alternativa : r.folio;
+    return `<div style="margin-top:4px"><span class="chip w">⚠️ verificar: ¿${f||r.folio} o ${otro}?</span> <button class="pill" data-k="okfolio">Confirmar ${f||r.folio}</button> <button class="pill" data-k="otrofolio" data-v="${otro}">Es ${otro}</button></div>`; }
+  if(r.folio && f && r.folio!==f && !(r.conf==='duda'&&r.alternativa===f)) h+=`<span class="chip f">foto dice ${r.folio}</span> `;
+  else if(r.folio) h+= (r.conf==='alta'||it.verificado)?'<span class="chip r">folio verificado</span> ':S.todas.get(r.folio)?.emitida?'<span class="chip w">revisar folio</span> ':'<span class="chip w">no está en Excel: por clasificar</span> ';
+  if(r.cliente && !(S.todas.get(f)||{}).cliente) h+=`<span class="chip">${esc(r.cliente.slice(0,26))}</span> `;
+  else h+='<span class="chip w">folio no leído</span> ';
+  if(r.nv) h+= r.nvOk===false?`<span class="chip f">NV ${r.nv} no coincide</span>`:`<span class="chip ${r.nvOk?'r':''}">NV ${r.nv}</span>`;
+  return `<div style="margin-top:4px">${h}</div>`;
+}
+function renderImp(){
+  const vistos={};
+  $('#imList').innerHTML = S.imp.map(it=>{ const f=Number(it.folio); const n = f ? (vistos[f]=(vistos[f]||0)+1) : 0;
+    const g=f?S.todas.get(f):null;
+    return `<div class="imp" data-id="${it.id}">
+    <img src="${it.mini}" alt="">
+    <div class="f">
+      <div class="muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.nombre)}${n>1?` · <b style="color:var(--navy)">copia ${n} de GD ${f}</b>`:''}</div>
+      ${g&&g.cliente?`<div class="muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(g.cliente)} · 🚚 ${esc(g.transportista||'—')}</div>`:''}
+      <input type="number" inputmode="numeric" placeholder="Folio" value="${it.folio}" data-k="folio">
+      <div style="margin-top:4px">${it.mot.length?`<span class="chip f" title="${esc(it.mot.join(' · '))}">✖ No legible</span> <span class="muted">${esc(it.mot[0])}</span>`:'<span class="chip r">✔ Legible</span>'} ${it.est?`<span class="chip ${it.est==='ok'?'r':'f'}">${it.est==='ok'?'Subida':'Error'}</span>`:''}</div>
+      ${chipOCR(it)}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:center">
+      <input type="checkbox" data-k="sel" ${it.sel?'checked':''} ${it.mot.length&&!can('forzar')?'disabled':''} style="width:22px;height:22px">
+      <button class="btn sec sm" data-k="del">✕</button>
+    </div></div>`; }).join('');
+  const nSel=S.imp.filter(x=>x.sel&&x.est!=='ok');
+  $('#imUp').textContent = `Subir ${nSel.length} página(s) seleccionada(s)`;
+  $('#imUp').classList.toggle('hidden', !S.imp.length);
+  $('#imOpc').classList.toggle('hidden', !S.imp.length);
+}
+$('#imList').addEventListener('input',e=>{ const c=e.target.closest('.imp'); if(!c) return; const it=S.imp.find(x=>x.id===c.dataset.id); if(e.target.dataset.k==='folio'){ it.folio=e.target.value; it.verificado=true; } if(e.target.dataset.k==='sel') it.sel=e.target.checked; $('#imUp').textContent=`Subir ${S.imp.filter(x=>x.sel&&x.est!=='ok').length} página(s) seleccionada(s)`; });
+$('#imList').addEventListener('change',e=>{ if(e.target.dataset.k==='folio') renderImp(); });
+$('#imList').addEventListener('click',e=>{
+  const k=e.target.dataset.k;
+  if(k==='okfolio'||k==='otrofolio'){ const c=e.target.closest('.imp'); const it=S.imp.find(x=>x.id===c.dataset.id);
+    if(k==='otrofolio') it.folio=Number(e.target.dataset.v); else if(!it.folio) it.folio=it.ocr.folio;
+    it.verificado=true; renderImp(); return; }
+  if(k==='del'){ const c=e.target.closest('.imp'); S.imp=S.imp.filter(x=>x.id!==c.dataset.id); renderImp(); } });
+$('#imUp').onclick=async()=>{
+  const sel=S.imp.filter(x=>x.sel && x.est!=='ok');
+  const sinF=sel.filter(x=>!Number(x.folio)); if(sinF.length){ toast(`Falta el folio en ${sinF.length} guía(s)`,'err'); return; }
+  if(S.imp.some(x=>x.sel && x.ocr && x.ocr.leyendo) && !confirm('Todavía estoy leyendo folios de algunas páginas. ¿Subir de todas formas las que ya tienen folio?')) return;
+  const malas=sel.filter(x=>x.ocr && x.ocr.folio && x.ocr.folio!==Number(x.folio));
+  if(malas.length && !confirm(`En ${malas.length} página(s) el folio escrito no coincide con el leído en la foto (ej. ${malas[0].folio} vs ${malas[0].ocr.folio}). ¿Subir igual?`)) return;
+  const dudas=sel.filter(x=>x.ocr && x.ocr.conf==='duda' && !x.verificado);
+  if(dudas.length && !confirm(`${dudas.length} página(s) están marcadas "verificar" (ej. folio ${dudas[0].folio}): la app no está segura entre dos folios parecidos. ¿Subirlas igual con el folio indicado?`)) return;
+  const modoExist=$('#imModo').value;
+  // agrupa por folio: la 1ª página de cada guía usa el modo elegido, las siguientes se agregan como páginas
+  const primera=new Set(); let nGuias=0;
+  $('#imUp').disabled=true; let ok=0;
+  for(let i=0;i<sel.length;i++){ const it=sel[i]; prog($('#imProg'), i/sel.length);
+    const f=Number(it.folio); let modo='agregar';
+    if(!primera.has(f)){ primera.add(f); nGuias++; modo = S.todas.get(f)?.foto ? modoExist : 'reemplazar'; }
+    try{ await guardarGuia(f, it.blob, it.q, 'importada', null, it.ocr&&!it.ocr.leyendo&&!it.ocr.error?{folio:it.ocr.folio,nv:it.ocr.nv,cliente:it.ocr.cliente}:null, modo); it.est='ok'; ok++; }
+    catch(e){ it.est='err'; console.error(e); } }
+  prog($('#imProg'),null); $('#imUp').disabled=false;
+  toast(`${ok} de ${sel.length} páginas subidas (${nGuias} guías)`, ok===sel.length?'ok':'err', 5000);
+  S.imp=S.imp.filter(x=>x.est!=='ok'); renderImp();
+};
+
+/* ---------- IMPORTAR EXCEL ---------- */
+const norm = s => String(s??'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
+const COLS = {
+  folio:['folio','nfolio','foliogd','folioguia','nguia','numeroguia','guia'],
+  fecha:['fecha','fechaemision','fechaguia','fechadespacho','fechadoc','fecemision'],
+  cliente:['nomaux','cliente','razonsocial','nombrecliente','nomcliente'],
+  transportista:['retiradopor','transportista','transporte','empresatransporte','chofer'],
+  nv2:['nvnumero2'],
+  nv:['nvnumero','nv','notaventa','nnv','numnv'],
+  despachadoPor:['despachadopor'],
+  codaux:['codaux','rut','rutcliente'],
+  patente:['patente'],
+  vendedor:['vendes','vendedor'],
+  factura:['factura'],
+  tipo:['tipo'],
+  estadoDoc:['estado'],
+  concepto:['concepto','conceptodoc','tipoguia']
+};
+function aFecha(v){
+  if(v instanceof Date && !isNaN(v)) return ymd(new Date(v.getTime()+12*3600e3));
+  if(typeof v==='number' && v>20000 && v<80000){ const p=XLSX.SSF.parse_date_code(v); return `${p.y}-${String(p.m).padStart(2,'0')}-${String(p.d).padStart(2,'0')}`; }
+  const s=String(v||'').trim(); let m;
+  if((m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/))) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  if((m=s.match(/^(\d{4})-(\d{2})-(\d{2})/))) return `${m[1]}-${m[2]}-${m[3]}`;
+  return '';
+}
+const limpiaTxt = s => String(s??'').replace(/\s+/g,' ').trim();
+// Lee el libro y devuelve una guía por folio (las filas vienen repetidas, una por producto).
+function parsearExcel(wb, tipoForzado){
+  let rows,hi=-1,hoja;
+  for(const n of wb.SheetNames){ const r=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:''});
+    for(let i=0;i<Math.min(15,r.length);i++){ if(r[i].some(c=>COLS.folio.includes(norm(c)))){ rows=r; hi=i; hoja=n; break; } } if(rows) break; }
+  if(!rows) throw new Error('No encontré una columna "Folio" en ninguna hoja');
+  const H=rows[hi].map(norm), idx={};
+  for(const k in COLS){ idx[k]=H.findIndex(h=>COLS[k].includes(h)); }
+  if(idx.fecha<0) idx.fecha=H.findIndex(h=>h.startsWith('fecha'));
+  if(idx.fecha<0) throw new Error('No encontré una columna de fecha');
+  const map=new Map(); let sinFecha=0, entradas=0;
+  const val = (k,r) => idx[k]>=0 ? limpiaTxt(r[idx[k]]) : '';
+  for(const r of rows.slice(hi+1)){
+    const f=Number(String(r[idx.folio]).replace(/\D/g,'')); if(!f) continue;
+    if(val('tipo',r).toUpperCase()==='E'){ entradas++; continue; }   // Tipo E = entrada/devolución, otra serie
+    if(map.has(f)) continue;
+    const fecha=aFecha(r[idx.fecha]); if(!fecha){ sinFecha++; continue; }
+    const g={folio:f, fecha, emitida:true};
+    for(const k of ['cliente','transportista','despachadoPor','codaux','patente','vendedor','factura']){ const v=val(k,r); if(v && v!=='0') g[k]=v; }
+    if(g.transportista) g.transportista=g.transportista.toUpperCase();
+    const nv=[val('nv2',r), val('nv',r)].find(v=>v && v!=='0'); if(nv) g.nv=nv;
+    const con=val('concepto',r); if(con) g.concepto=con;
+    if(tipoForzado) g.tipo=tipoForzado;
+    if(val('estadoDoc',r).toUpperCase()==='N'){ g.anulada=true; g.motivoAnulacion='Nula en sistema'; g.anuladaPor='Importación'; }
+    map.set(f,g);
+  }
+  const arr=[...map.values()].sort((a,b)=>a.folio-b.folio);
+  if(!arr.length) throw new Error('No hay filas con folio y fecha válidos');
+  return { arr, hoja, idx, cabecera:rows[hi], filas:rows.length-hi-1, sinFecha, entradas };
+}
+// ¿la guía del Excel trae algo distinto a lo que ya está en la app?
+function cambioXls(g){
+  const p=S.todas.get(g.folio); if(!p || !p.emitida || p.eliminado) return true;
+  for(const k of Object.keys(g)) if(String(p[k]??'')!==String(g[k]??'')) return true;
+  return false;
+}
+$('#inXls').onchange=async e=>{
+  const file=e.target.files[0]; if(!file) return;
+  $('#xlsPrev').innerHTML='<p class="muted">Leyendo…</p>';
+  try{
+    const wb=XLSX.read(await file.arrayBuffer(),{cellDates:true});
+    const P=parsearExcel(wb, $('#xlsTipo').value), arr=P.arr;
+    const conceptos={}; arr.forEach(g=>{ if(g.concepto) conceptos[g.concepto]=(conceptos[g.concepto]||0)+1; });
+    const nuevas=arr.filter(cambioXls);
+    S.xls=nuevas;
+    const fechas=arr.map(g=>g.fecha).sort();
+    const det=Object.entries(P.idx).map(([k,i])=>`${k}: <b>${i>=0?esc(P.cabecera[i]):'—'}</b>`).join(' · ');
+    $('#xlsPrev').innerHTML=`<div class="qbox ok">
+      <div>Hoja <b>${esc(P.hoja)}</b> · ${fmtN(P.filas)} filas → <b>${fmtN(arr.length)} guías únicas</b></div>
+      <div>Folios ${arr[0].folio} a ${arr[arr.length-1].folio} · fechas ${fechas[0]} a ${fechas[fechas.length-1]}</div>
+      <div>${fmtN(arr.filter(g=>g.anulada).length)} anuladas en el sistema (Estado N) se marcan como anuladas</div>
+      ${P.entradas?`<div class="muted">${fmtN(P.entradas)} filas Tipo E (entradas/devoluciones) se omiten</div>`:''}
+      ${$('#xlsTipo').value?`<div>Todas se registran como <b>${esc(tipoNombre($('#xlsTipo').value))}</b></div>`:Object.keys(conceptos).length?`<div>Concepto: ${Object.entries(conceptos).map(([c,n])=>`<b>${esc(c)}</b> → ${esc(tipoNombre((S.cfg.conceptos||{})[c]||(c==='1'?'venta':'otro')))} (${fmtN(n)})`).join(' · ')}</div>`:''}
+      ${P.sinFecha?`<div style="color:var(--amber)">${P.sinFecha} filas sin fecha válida se omiten</div>`:''}
+      <div style="margin-top:6px"><b>${fmtN(nuevas.length)}</b> guías nuevas o con cambios · ${fmtN(arr.length-nuevas.length)} ya estaban al día</div>
+      <div class="muted" style="margin-top:6px">Columnas detectadas: ${det}</div></div>
+      <div class="prog hidden" id="xlsProg"><i></i></div>
+      ${nuevas.length?`<button class="btn green" id="xlsGo" style="width:100%;margin-top:10px">Importar ${fmtN(nuevas.length)} guías</button>`:'<div class="muted" style="margin-top:8px">No hay nada nuevo que importar.</div>'}`;
+    if(nuevas.length) $('#xlsGo').onclick=importarXls;
+  } catch(err){ $('#xlsPrev').innerHTML=`<div class="qbox bad">${esc(err.message)}</div>`; }
+  e.target.value='';
+};
+async function importarXls(){
+  const arr=S.xls; if(!arr) return;
+  if(arr.length>15000 && !confirm('Son muchas guías; el plan gratis permite 20.000 escrituras al día. Puedes importar el resto mañana. ¿Continuar?')) return;
+  $('#xlsGo').disabled=true; let n=0;
+  try{
+    for(let i=0;i<arr.length;i+=400){
+      const b=db.batch(); const part=arr.slice(i,i+400);
+      part.forEach(g=>b.set(db.collection('guias').doc(String(g.folio)), {...g, eliminado:false, importado:TS(), actualizado:TS()}, {merge:true}));
+      await b.commit(); n+=part.length; prog($('#xlsProg'), n/arr.length);
+      const locs=part.map(g=>({...(S.todas.get(g.folio)||{}), ...g, eliminado:false}));
+      locs.forEach(l=>S.todas.set(l.folio,l));
+      await tx('guias','readwrite',s=>{ locs.forEach(l=>s.put(l)); });
+    }
+    aplicarRango();
+    toast(`${fmtN(n)} guías importadas ✔`,'ok');
+    $('#xlsPrev').innerHTML=`<div class="qbox ok">Importación completa: ${fmtN(n)} guías.</div>`;
+    S.xls=null;
+  } catch(e){ aplicarRango(); toast(`Se importaron ${fmtN(n)} de ${fmtN(arr.length)}. Error: ${e.message}`,'err',8000); $('#xlsGo').disabled=false; }
+}
+
+/* ---------- LISTADO ---------- */
+// valor de una guía para un campo de agrupación del dashboard
+const valorCampo = (g,campo) => campo==='transportista' ? grupoTr(g) : campo==='tipo' ? tipoNombre(tipoDe(g)) : (String(g[campo]||'(sin dato)').trim()||'(sin dato)');
+// folios del correlativo sin ningún registro: se muestran como guías virtuales "por clasificar"
+const virtuales = () => (sinRegistro()||[]).map(f=>({folio:f, fecha:S.gapFecha.get(f), virtual:true}));
+function filtrados(){
+  const t=norm($('#lsTxt').value), est=$('#lsEst').value;
+  const base=[...S.guias.values()];
+  if(!est || est==='clasificar') base.push(...virtuales());
+  return base.filter(g=>{
+    if(est==='clasificar'){ if(!(g.virtual || sinClasificar(g))) return false; }
+    else if(est==='sinemision'){ if(!(g.foto && !g.emitida)) return false; }
+    else if(est && (g.virtual || estado(g)!==est)) return false;
+    if(t && !norm(`${g.folio} ${g.cliente} ${g.transportista} ${g.nv} ${g.patente}`).includes(t)) return false;
+    const F=S.filtro; if(F){ if(g.virtual || valorCampo(g,F.campo)!==F.k) return false; }
+    return true;
+  }).sort((a,b)=>b.folio-a.folio);
+}
+function renderListado(){
+  $('#lsFiltro').classList.toggle('hidden', !S.filtro);
+  if(S.filtro) $('#lsFiltro').textContent=`${S.filtro.campo==='transportista'?'🚚':'🏢'} ${S.filtro.k}  ✕`;
+  const arr=filtrados(), max=400;
+  $('#lsInfo').textContent = `${fmtN(arr.length)} guías${arr.length>max?` · mostrando las primeras ${max}`:''}`;
+  $('#lsList').innerHTML = arr.slice(0,max).map(g=>{
+    if(g.virtual) return `<div class="gi" data-f="${g.folio}" data-v="1">
+      <div class="th">sin registro</div>
+      <div class="gd"><b>GD ${g.folio}</b> <span class="chip w">Por clasificar</span>
+        <div class="muted">≈ ${esc(g.fecha||'')} · no aparece en el Excel de guías</div>
+        <div class="muted">¿Facturación anticipada, traslado, anulada…?</div></div>
+      <div class="ga">${can('clasificar')?'<button class="btn sm" data-a="clasif">Clasificar</button>':''}${can('capturar')?'<button class="btn sec sm" data-a="cap">📷</button>':''}</div></div>`;
+    const e=estado(g), t=tipoDe(g);
+    const chip = e==='respaldada'?'<span class="chip r">Con foto</span>':e==='anulada'?'<span class="chip a">Anulada</span>':e==='norequiere'?'<span class="chip a">No requiere foto</span>':'<span class="chip f">Faltante</span>';
+    let acc='';
+    if(g.foto) acc+=`<button class="btn sec sm" data-a="ver">👁️</button><button class="btn sec sm" data-a="jpg">⬇️</button>`;
+    if(!g.foto && !g.anulada && can('capturar')) acc+=`<button class="btn sm" data-a="cap">📷</button>`;
+    if(can('clasificar') && (!g.emitida || sinClasificar(g))) acc+=`<button class="btn ${sinClasificar(g)?'':'sec'} sm" data-a="clasif">${sinClasificar(g)?'Clasificar':'Tipo'}</button>`;
+    if(can('anular')) acc+= g.anulada?`<button class="btn sec sm" data-a="desanular">Reactivar</button>`:(!g.foto?`<button class="btn sec sm" data-a="anular">Anular</button>`:'');
+    if(g.foto && can('eliminar')) acc+=`<button class="btn sec sm" data-a="delfoto" title="Eliminar foto">🗑️</button>`;
+    return `<div class="gi" data-f="${g.folio}">
+      <div class="th">${g.foto?`<img loading="lazy" src="${thumb(g.foto.url)}" data-a="ver" alt="">`:'sin foto'}</div>
+      <div class="gd"><b>GD ${g.folio}</b> ${chip} ${(g.paginas||[]).length?`<span class="chip">${paginasDe(g).length} pág.</span>`:''} ${sinClasificar(g)?'<span class="chip w">Por clasificar</span>':t!=='venta'?`<span class="chip">${esc(tipoNombre(t))}</span>`:''}
+        <div class="muted">${esc(g.fecha||'')} · ${esc(g.cliente||'—')}${g.obs?` · 📝 ${esc(g.obs)}`:''}</div>
+        <div class="muted">🚚 ${esc(g.transportista||'—')}${g.patente?` (${esc(g.patente)})`:''} · NV ${esc(g.nv||'—')}${g.foto?` · 📷 ${esc(g.foto.por||'')}`:''}</div></div>
+      <div class="ga">${acc}</div></div>`;
+  }).join('') || '<p class="muted">No hay guías con esos filtros en el período.</p>';
+}
+$('#lsTxt').addEventListener('input',()=>{ clearTimeout(S._t); S._t=setTimeout(renderListado,250); });
+$('#lsEst').onchange=renderListado;
+$('#lsList').onclick=async e=>{
+  const b=e.target.closest('[data-a]'); if(!b) return;
+  const f=Number(b.closest('[data-f]').dataset.f), g=S.todas.get(f), a=b.dataset.a;
+  if(a==='clasif'){ abrirClasificar([f]); return; }
+  if(a==='ver') abrirVisor(g);
+  if(a==='jpg') descargarJpg(g);
+  if(a==='cap'){ irTab('capturar'); $('#cpFolio').value=f; infoFolio(); }
+  if(a==='anular') anular(f,true);
+  if(a==='desanular') anular(f,false);
+  if(a==='delfoto') eliminarFoto(g);
+};
+function fechaVecina(f){ let best=null; for(const g of S.todas.values()){ if(g.fecha && (!best || Math.abs(g.folio-f)<Math.abs(best.folio-f))) best=g; } return best?best.fecha:hoy(); }
+// fecha para un folio que no viene en el Excel: la del folio emitido anterior (el correlativo avanza con el tiempo);
+// si es más nuevo que todo lo importado, hoy.
+function fechaEstimada(f){
+  const R=rangoFolios(); if(!R || f>R.max || f<R.min) return hoy();
+  let best=null; for(const g of S.todas.values()) if(g.emitida && g.folio<f && (!best||g.folio>best.folio)) best=g;
+  return best ? best.fecha : hoy();
+}
+async function anular(f, val){
+  let motivo='';
+  if(val){ motivo=prompt(`Motivo de anulación de la guía ${f} (opcional):`); if(motivo===null) return; }
+  const g=S.todas.get(f)||{folio:f};
+  const data={ folio:f, fecha:g.fecha||fechaVecina(f), anulada:val, motivoAnulacion:motivo||'', anuladaPor:S.user.nombre, eliminado:false, actualizado:TS() };
+  try{ await db.collection('guias').doc(String(f)).set(data,{merge:true}); const l={...g,...data}; delete l.actualizado; localSet(l); toast(val?`Guía ${f} anulada`:`Guía ${f} reactivada`,'ok'); }
+  catch(e){ toast('Error: '+e.message,'err'); }
+}
+/* ---------- clasificar folios sin registro ---------- */
+function parsearFolios(txt){
+  const out=new Set();
+  for(const p of String(txt).split(/[,;\s]+/).filter(Boolean)){
+    const m=p.match(/^(\d+)(?:-(\d+))?$/); if(!m) throw new Error(`"${p}" no es un folio ni un rango`);
+    const a=+m[1], b=m[2]?+m[2]:a; if(b<a || b-a>500) throw new Error(`Rango inválido: ${p}`);
+    for(let f=a;f<=b;f++) out.add(f);
+  }
+  return [...out].sort((a,b)=>a-b);
+}
+function abrirClasificar(folios){
+  $('#clFolios').value=compactar(folios).replace(/–/g,'-');
+  const g=folios.length===1?S.todas.get(folios[0]):null;
+  $('#clTipo').innerHTML=Object.entries(TIPOS).filter(([k])=>k!=='venta').map(([k,v])=>`<option value="${k}">${esc(v.nombre)}</option>`).join('')+'<option value="venta">Despacho venta</option><option value="anulada">Anulada</option>';
+  $('#clTipo').value = g&&g.tipo ? g.tipo : 'factant';
+  $('#clCliente').value=g&&g.cliente||''; $('#clNV').value=g&&g.nv||''; $('#clPat').value=g&&g.patente||''; $('#clObs').value=g&&g.obs||'';
+  if(!S._dlCli){ S._dlCli=1; $('#dlClientes').innerHTML=[...new Set([...S.todas.values()].map(x=>x.cliente).filter(Boolean))].sort().map(c=>`<option value="${esc(c)}">`).join(''); }
+  $('#clErr').textContent=''; infoClasificar(); $('#mdCla').classList.remove('hidden');
+}
+function infoClasificar(){
+  const t=$('#clTipo').value;
+  $('#clDatos').classList.toggle('hidden', t==='anulada');
+  $('#clReq').textContent = t==='anulada' ? 'No cuenta en las estadísticas.' :
+    ((S.cfg.tipos[t]&&'requiereFoto' in S.cfg.tipos[t]) ? S.cfg.tipos[t].requiereFoto : TIPOS[t].requiereFoto) ? '📷 Este tipo requiere foto de respaldo: si no la tiene, cuenta como faltante.' : 'Este tipo no requiere foto de respaldo (no cuenta como faltante).';
+  try{ const fs=parsearFolios($('#clFolios').value); const conEx=fs.filter(f=>S.todas.get(f)?.emitida);
+    $('#clInfo').textContent=`${fs.length} folio(s)`+(conEx.length?` · ⚠️ ${conEx.length} ya vienen en el Excel (${conEx.slice(0,3).join(', ')}…) y no se modificarán`:''); }
+  catch(e){ $('#clInfo').textContent=e.message; }
+}
+$('#clTipo').onchange=infoClasificar; $('#clFolios').addEventListener('input',infoClasificar);
+$('#clOk').onclick=async()=>{
+  let fs; try{ fs=parsearFolios($('#clFolios').value); } catch(e){ $('#clErr').textContent=e.message; return; }
+  fs=fs.filter(f=>!S.todas.get(f)?.emitida);
+  if(!fs.length){ $('#clErr').textContent='No hay folios para clasificar'; return; }
+  const t=$('#clTipo').value, obs=$('#clObs').value.trim();
+  const base={ clasificadoPor:S.user.nombre, clasificadoEn:new Date().toISOString(), eliminado:false, actualizado:TS() };
+  if(obs) base.obs=obs;
+  if(t==='anulada') Object.assign(base,{anulada:true, motivoAnulacion:obs||'Clasificada como anulada', anuladaPor:S.user.nombre});
+  else { base.tipo=t; base.anulada=false;
+    const c=$('#clCliente').value.trim(), nv=$('#clNV').value.trim(), p=$('#clPat').value.trim().toUpperCase();
+    if(c) base.cliente=c; if(nv) base.nv=nv; if(p) base.patente=p; }
+  $('#clOk').disabled=true;
+  try{
+    const locs=[];
+    for(let i=0;i<fs.length;i+=400){ const b=db.batch();
+      for(const f of fs.slice(i,i+400)){ const prev=S.todas.get(f)||{};
+        const fecha=prev.fecha || (S.gapFecha&&S.gapFecha.get(f)) || fechaVecina(f);
+        const d={...base, folio:f, fecha};
+        b.set(db.collection('guias').doc(String(f)), d, {merge:true});
+        const l={...prev,...d}; delete l.actualizado; locs.push(l); }
+      await b.commit(); }
+    locs.forEach(l=>S.todas.set(l.folio,l)); await tx('guias','readwrite',s=>{ locs.forEach(l=>s.put(l)); });
+    aplicarRango(); $('#mdCla').classList.add('hidden');
+    toast(`${fs.length} folio(s) clasificados como ${t==='anulada'?'anulados':tipoNombre(t)}`,'ok');
+  } catch(e){ $('#clErr').textContent='Error: '+e.message; }
+  finally{ $('#clOk').disabled=false; }
+};
+
+async function eliminarFoto(g){
+  if(!confirm(`¿Eliminar la foto de la guía ${g.folio}? Quedará como faltante (la foto queda en el historial).`)) return;
+  const FV=firebase.firestore.FieldValue;
+  const ps=paginasDe(g);
+  const data={ foto:FV.delete(), paginas:[], fotosAnteriores:FV.arrayUnion(...ps), actualizado:TS() };
+  if(!g.emitida && !g.anulada) data.eliminado=true;
+  try{ await db.collection('guias').doc(String(g.folio)).update(data); const l={...g}; l.fotosAnteriores=[...(g.fotosAnteriores||[]),...ps]; delete l.foto; l.paginas=[]; if(data.eliminado) l.eliminado=true; localSet(l); toast('Foto eliminada','ok'); }
+  catch(e){ toast('Error: '+e.message,'err'); }
+}
+
+/* ---------- visor y descargas ---------- */
+async function blobDe(url){ const r=await fetch(url); if(!r.ok) throw new Error('No se pudo descargar'); return r.blob(); }
+function bajar(blob, nombre){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=nombre; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },2000); }
+async function guardarEnCelular(blob, nombre){
+  const file=new File([blob], nombre, {type:blob.type||'image/jpeg'});
+  if(navigator.canShare && navigator.canShare({files:[file]})){ try{ await navigator.share({files:[file], title:nombre}); return; } catch(e){ if(e.name==='AbortError') return; } }
+  bajar(blob, nombre);
+}
+async function descargarJpg(g, idx){
+  const ps=paginasDe(g); const lista = idx==null ? ps.map((p,i)=>[p,i]) : [[ps[idx],idx]];
+  try{ for(const [p,i] of lista) bajar(await blobDe(p.url), nomPag(g.folio,i)); } catch(e){ toast(e.message,'err'); }
+}
+const blobAData = b => new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.readAsDataURL(b); });
+const cargarImg = src => new Promise((r,j)=>{ const i=new Image(); i.onload=()=>r(i); i.onerror=j; i.src=src; });
+async function hacerPDF(lista, onProg){
+  const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:'mm',format:'a4'});
+  let primera=true;
+  for(let i=0;i<lista.length;i++){ const g=lista[i], ps=paginasDe(g);
+    for(let k=0;k<ps.length;k++){ if(!primera) doc.addPage(); primera=false;
+      const du=await blobAData(await blobDe(ps[k].url)), im=await cargarImg(du);
+      const pw=210, ph=297, m=8, top=14, r=Math.min((pw-2*m)/im.width,(ph-top-m)/im.height), w=im.width*r, h=im.height*r;
+      doc.setFontSize(10); doc.text(`Guía ${g.folio}${ps.length>1?` (pág. ${k+1}/${ps.length})`:''} · ${g.fecha||''} · ${g.cliente||''} · ${g.transportista||''}`.slice(0,120), m, 9);
+      doc.addImage(du,'JPEG',(pw-w)/2,top,w,h); }
+    onProg&&onProg((i+1)/lista.length); }
+  return doc.output('blob');
+}
+let vrG=null, vrI=0;
+function abrirVisor(g){ vrG=g; vrI=0; pintarVisor(); $('#mdVer').classList.remove('hidden'); }
+function pintarVisor(){
+  const g=vrG, ps=paginasDe(g), p=ps[vrI];
+  $('#vrTit').textContent=`Guía ${g.folio}`;
+  $('#vrInfo').textContent=`${g.fecha||''} · ${g.cliente||'—'} · 🚚 ${g.transportista||'—'} · NV ${g.nv||'—'} · Foto: ${p.por||''} ${p.fechaHora?new Date(p.fechaHora).toLocaleString('es-CL'):''}`;
+  $('#vrPags').innerHTML = ps.length>1 ? ps.map((_,i)=>`<button class="btn sm ${i===vrI?'':'sec'}" data-pag="${i}">Página ${i+1}</button>`).join('')
+    + (can('eliminar')?`<button class="btn sec sm" data-delpag="${vrI}" title="Quitar esta página">🗑️ Quitar pág. ${vrI+1}</button>`:'') : '';
+  $('#vrBox').classList.remove('zoom'); $('#vrImg').src=p.url;
+  $('#vrJpg').textContent = ps.length>1 ? `⬇️ JPG pág. ${vrI+1}` : '⬇️ JPG';
+  $('#vrHist').innerHTML = (g.fotosAnteriores||[]).length ? 'Fotos anteriores: '+g.fotosAnteriores.map((f,i)=>`<a href="${esc(f.url)}" target="_blank" rel="noopener">#${i+1} (${esc(f.por||'')})</a>`).join(' · ') : '';
+}
+$('#vrPags').onclick=async e=>{
+  const b=e.target.closest('[data-pag]'); if(b){ vrI=+b.dataset.pag; pintarVisor(); return; }
+  const d=e.target.closest('[data-delpag]'); if(!d) return;
+  const i=+d.dataset.delpag; if(!confirm(`¿Quitar la página ${i+1} de la guía ${vrG.folio}? (queda en el historial)`)) return;
+  const ps=paginasDe(vrG), quitada=ps[i], resto=ps.filter((_,k)=>k!==i);
+  const FV=firebase.firestore.FieldValue;
+  try{
+    await db.collection('guias').doc(String(vrG.folio)).update({ foto:resto[0], paginas:resto.slice(1), fotosAnteriores:FV.arrayUnion(quitada), actualizado:TS() });
+    const l={...vrG, foto:resto[0], paginas:resto.slice(1), fotosAnteriores:[...(vrG.fotosAnteriores||[]),quitada]};
+    localSet(l); vrG=l; vrI=0; pintarVisor(); toast('Página quitada','ok');
+  } catch(err){ toast('Error: '+err.message,'err'); }
+};
+$('#vrImg').onclick=()=>$('#vrBox').classList.toggle('zoom');
+$('#vrJpg').onclick=()=>descargarJpg(vrG, vrI);
+$('#vrPdf').onclick=async()=>{ try{ bajar(await hacerPDF([vrG]), `GD_${pad(vrG.folio)}.pdf`); }catch(e){ toast(e.message,'err'); } };
+$('#vrCel').onclick=async()=>{ try{ await guardarEnCelular(await blobDe(paginasDe(vrG)[vrI].url), nomPag(vrG.folio,vrI)); }catch(e){ toast(e.message,'err'); } };
+document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m || e.target.closest('[data-close]')) m.classList.add('hidden'); }));
+
+/* ---------- DASHBOARD ---------- */
+function agrupar(campo){
+  const m=new Map();
+  for(const g of S.guias.values()){
+    const e=estado(g); if(e==='anulada' || e==='norequiere') continue;
+    const k = valorCampo(g,campo);
+    const o=m.get(k)||{k,emit:0,resp:0,falt:0}; o.emit++; if(e==='respaldada') o.resp++; else o.falt++; m.set(k,o);
+  }
+  return [...m.values()].map(o=>({...o, pct:o.emit?o.resp/o.emit*100:0})).sort((a,b)=>b.falt-a.falt||b.emit-a.emit);
+}
+function tablaTipos(){
+  const m=new Map();
+  for(const g of S.guias.values()){ if(g.anulada) continue; const t=tipoDe(g), e=estado(g);
+    const o=m.get(t)||{t,n:0,resp:0,falt:0,noreq:0}; o.n++; if(e==='respaldada') o.resp++; else if(e==='faltante') o.falt++; else o.noreq++; m.set(t,o); }
+  const nv=(S._ultSr||[]).length;
+  return `<table><tr><th>Tipo</th><th class="n">Guías</th><th class="n">Con foto</th><th class="n">Faltan</th><th class="n">No requiere</th></tr>`
+    + [...m.values()].sort((a,b)=>b.n-a.n).map(o=>`<tr class="click" data-campo="tipo" data-k="${esc(tipoNombre(o.t))}"><td>${esc(tipoNombre(o.t))}</td><td class="n">${fmtN(o.n)}</td><td class="n">${fmtN(o.resp)}</td><td class="n" style="color:${o.falt?'var(--red)':'inherit'};font-weight:600">${fmtN(o.falt)}</td><td class="n">${fmtN(o.noreq)}</td></tr>`).join('')
+    + (nv?`<tr><td><b style="color:var(--amber)">Por clasificar (sin registro)</b></td><td class="n">${fmtN(nv)}</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>`:'') + '</table>';
+}
+function sinRegistro(){
+  // Saltos del correlativo dentro del período. Un salto de más de 200 folios se considera
+  // cambio de serie (ej. folios 0/1 de prueba), no guías faltantes.
+  // Cada folio del salto toma la fecha del folio anterior (el correlativo avanza con el tiempo).
+  const fs=[...S.guias.keys()].sort((a,b)=>a-b); S.gapFecha=new Map(); if(fs.length<2) return [];
+  const out=[];
+  for(let i=1;i<fs.length;i++){ const a=fs[i-1], b=fs[i]; if(b-a<=1 || b-a>200) continue;
+    const fa=S.guias.get(a).fecha;
+    for(let f=a+1;f<b;f++){ const x=S.todas.get(f); if(!(x&&!x.eliminado)){ out.push(f); S.gapFecha.set(f,fa); } } }
+  return out;
+}
+function compactar(arr){ if(!arr.length) return '—'; const r=[]; let a=arr[0],p=arr[0];
+  for(const x of arr.slice(1).concat([null])){ if(x===p+1){ p=x; continue; } r.push(a===p?`${a}`:`${a}–${p}`); a=p=x; } return r.join(', '); }
+function chart(id, cfg){ if(S.charts[id]) S.charts[id].destroy(); S.charts[id]=new Chart($('#'+id), cfg); }
+function tablaRank(arr, campo){
+  return `<table><tr><th>${campo==='transportista'?'Transportista':'Cliente'}</th><th class="n">Requieren foto</th><th class="n">Con foto</th><th class="n">Faltan</th><th class="n">% cumpl.</th></tr>`
+    + arr.map(o=>`<tr class="click" data-campo="${campo}" data-k="${esc(o.k)}"><td>${esc(o.k)}</td><td class="n">${fmtN(o.emit)}</td><td class="n">${fmtN(o.resp)}</td><td class="n" style="color:${o.falt?'var(--red)':'inherit'};font-weight:600">${fmtN(o.falt)}</td><td class="n">${o.pct.toFixed(0)}%</td></tr>`).join('') + '</table>';
+}
+function renderDashboard(){
+  const all=[...S.guias.values()];
+  const anul=all.filter(g=>g.anulada).length;
+  const resp=all.filter(g=>estado(g)==='respaldada').length;
+  const falt=all.filter(g=>estado(g)==='faltante').length;
+  const noreq=all.filter(g=>estado(g)==='norequiere').length;
+  const sr=sinRegistro()||[]; S._ultSr=sr;
+  const fotoSinCl=all.filter(g=>g.foto && sinClasificar(g)).length;
+  const porCl=sr.length+fotoSinCl;
+  const tot=resp+falt;
+  $('#kpis').innerHTML=`
+    <div class="kpi"><b>${fmtN(tot)}</b><span>Guías que requieren foto</span></div>
+    <div class="kpi r"><b>${fmtN(resp)}</b><span>Con foto de respaldo</span></div>
+    <div class="kpi f"><b>${fmtN(falt)}</b><span>Faltantes</span></div>
+    <div class="kpi"><b>${tot?(resp/tot*100).toFixed(1):0}%</b><span>Cumplimiento</span></div>
+    <div class="kpi ${porCl?'f':''}" style="${porCl?'outline:2px solid #f0c27a':''}"><b style="${porCl?'color:var(--amber)':''}">${fmtN(porCl)}</b><span>Por clasificar${porCl?' ⚠️ (faltantes podría ser mayor)':''}</span></div>
+    <div class="kpi"><b>${fmtN(noreq)}</b><span>No requieren foto</span></div>
+    <div class="kpi"><b>${fmtN(anul)}</b><span>Anuladas</span></div>`;
+  $('#tbTipo').innerHTML=tablaTipos();
+  if(!window.Chart) return;
+  chart('chDonut',{type:'doughnut',data:{labels:['Con foto','Faltantes','Anuladas'],datasets:[{data:[resp,falt,anul],backgroundColor:['#2e7d32','#c62828','#9e9e9e']}]},options:{maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}});
+  const dias=[...new Set(all.map(g=>g.fecha))].sort();
+  const em=dias.map(d=>all.filter(g=>g.fecha===d&&!g.anulada&&(g.emitida||g.foto)).length);
+  const rs=dias.map(d=>all.filter(g=>g.fecha===d&&estado(g)==='respaldada').length);
+  chart('chDia',{type:'line',data:{labels:dias.map(d=>d.slice(5)),datasets:[{label:'Emitidas',data:em,borderColor:'#0b2a5b',backgroundColor:'#0b2a5b22',fill:true,tension:.25},{label:'Con foto',data:rs,borderColor:'#2e7d32',tension:.25}]},options:{maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true}}}});
+  const tr=agrupar('transportista'), cl=agrupar('cliente');
+  const trF=tr.filter(o=>o.falt).slice(0,15), clF=cl.filter(o=>o.falt).slice(0,15);
+  const hbar=(arr)=>({type:'bar',data:{labels:arr.map(o=>o.k.length>22?o.k.slice(0,21)+'…':o.k),datasets:[{label:'Faltantes',data:arr.map(o=>o.falt),backgroundColor:'#c62828'},{label:'Con foto',data:arr.map(o=>o.resp),backgroundColor:'#2e7d3299'}]},options:{indexAxis:'y',maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:{x:{stacked:true,beginAtZero:true},y:{stacked:true,ticks:{font:{size:11}}}}}});
+  chart('chTr',hbar(trF)); chart('chCl',hbar(clF));
+  $('#tbTr').innerHTML=tablaRank(tr,'transportista'); $('#tbCl').innerHTML=tablaRank(cl,'cliente');
+  const fl=all.filter(g=>estado(g)==='faltante').map(g=>g.folio).sort((a,b)=>a-b);
+  $('#gFalt').textContent=compactar(fl);
+  const fsc=all.filter(g=>g.foto && sinClasificar(g)).map(g=>g.folio);
+  $('#gSin').textContent= compactar([...sr,...fsc].sort((a,b)=>a-b));
+}
+$('#clVer').onclick=()=>{ S.filtro=null; $('#lsTxt').value=''; $('#lsEst').value='clasificar'; irTab('guias'); };
+$('#clTodo').onclick=()=>{ const all=[...S.guias.values()]; abrirClasificar([...(S._ultSr||[]), ...all.filter(g=>g.foto&&sinClasificar(g)).map(g=>g.folio)].sort((a,b)=>a-b)); };
+document.addEventListener('click',e=>{ const r=e.target.closest('tr.click'); if(!r) return;
+  S.filtro={campo:r.dataset.campo, k:r.dataset.k}; $('#lsTxt').value=''; $('#lsEst').value='faltante'; irTab('guias'); });
+$('#lsFiltro').onclick=()=>{ S.filtro=null; renderListado(); };
+function excelPeriodo(soloFaltantes){
+  const all=[...S.guias.values()].sort((a,b)=>a.folio-b.folio);
+  const fila=g=>({Folio:g.folio, Fecha:g.fecha, Cliente:g.cliente||'', NV:g.nv||'', 'Retirado por':g.transportista||'', Patente:g.patente||'', 'Transportista (grupo)':grupoTr(g), 'Tipo de guía':sinClasificar(g)?'Por clasificar':tipoNombre(tipoDe(g)), Estado:estado(g), 'Observación':g.obs||'', 'Páginas':paginasDe(g).length, 'Foto por':g.foto?.por||'', 'Fecha foto':g.foto?.fechaHora?new Date(g.foto.fechaHora).toLocaleString('es-CL'):'', 'URL foto':g.foto?.url||'', 'Motivo anulación':g.motivoAnulacion||''});
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(all.filter(g=>!soloFaltantes||estado(g)==='faltante').map(fila)), soloFaltantes?'Faltantes':'Guías');
+  if(soloFaltantes){
+    const ETQ={transportista:'Transportista', cliente:'Cliente', tipo:'Tipo de guía'};
+    const rk=c=>agrupar(c).map(o=>({[ETQ[c]]:o.k, 'Requieren foto':o.emit, 'Con foto':o.resp, Faltantes:o.falt, '% Cumplimiento':Math.round(o.pct)}));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rk('transportista')), 'Por transportista');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rk('cliente')), 'Por cliente');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rk('tipo')), 'Por tipo de guía');
+    const sr=sinRegistro()||[];
+    const pc=[...sr.map(f=>({Folio:f, 'Fecha aprox.':S.gapFecha.get(f), Situación:'Sin registro (no está en el Excel)'})),
+      ...all.filter(g=>g.foto&&sinClasificar(g)).map(g=>({Folio:g.folio, 'Fecha aprox.':g.fecha, Situación:'Con foto, falta clasificar'}))].sort((a,b)=>a.Folio-b.Folio);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pc.length?pc:[{Folio:'',Situación:'Sin folios por clasificar'}]), 'Por clasificar');
+  }
+  XLSX.writeFile(wb, `guias_${soloFaltantes?'faltantes_':''}${$('#fDesde').value}_a_${$('#fHasta').value}.xlsx`);
+}
+$('#dashXls').onclick=()=>excelPeriodo(true);
+$('#dlXls').onclick=()=>excelPeriodo(false);
+
+/* ---------- PC: carpeta, ZIP, PDF ---------- */
+const conFoto = () => [...S.guias.values()].filter(g=>g.foto).sort((a,b)=>a.folio-b.folio);
+$('#dlZip').onclick=async()=>{
+  const l=conFoto(); if(!l.length) return toast('No hay fotos en el período','err');
+  const zip=new JSZip(); let i=0;
+  for(const g of l){ const ps=paginasDe(g);
+    for(let k=0;k<ps.length;k++){ try{ zip.folder((g.fecha||'sin-fecha').slice(0,7)).file(nomPag(g.folio,k), await blobDe(ps[k].url)); }catch(e){} }
+    prog($('#dlProg'), ++i/l.length); }
+  bajar(await zip.generateAsync({type:'blob'}), `guias_${$('#fDesde').value}_a_${$('#fHasta').value}.zip`); prog($('#dlProg'),null);
+};
+$('#dlPdf').onclick=async()=>{
+  const l=conFoto().slice(0,200); if(!l.length) return toast('No hay fotos en el período','err');
+  try{ bajar(await hacerPDF(l, p=>prog($('#dlProg'),p)), `guias_${$('#fDesde').value}_a_${$('#fHasta').value}.pdf`); }
+  catch(e){ toast(e.message,'err'); } prog($('#dlProg'),null);
+};
+async function mostrarCarpeta(){ const h=await kvGet('dir').catch(()=>null); $('#pcDir').innerHTML = h?`Carpeta: <b>${esc(h.name)}</b>`:(window.showDirectoryPicker?'Sin carpeta elegida.':'⚠️ Este navegador no permite escribir en carpetas. Usa Chrome o Edge en el computador.'); $('#pcAuto').checked=localStorage.getItem('gd_auto')==='1'; }
+$('#pcElegir').onclick=async()=>{
+  if(!window.showDirectoryPicker) return toast('Usa Chrome o Edge en el computador','err');
+  try{ const h=await showDirectoryPicker({id:'guias',mode:'readwrite'}); await kvSet('dir',h); mostrarCarpeta(); toast('Carpeta guardada','ok'); } catch(e){ if(e.name!=='AbortError') toast(e.message,'err'); }
+};
+async function sincronizarCarpeta(silencioso){
+  const h=await kvGet('dir').catch(()=>null);
+  if(!h){ if(!silencioso) toast('Primero elige la carpeta','err'); return; }
+  let perm=await h.queryPermission({mode:'readwrite'});
+  if(perm!=='granted'){ if(silencioso) return; perm=await h.requestPermission({mode:'readwrite'}); if(perm!=='granted') return; }
+  const l=conFoto(); let nuevas=0, ya=0, err=0, i=0;
+  for(const g of l){
+    const sub=await h.getDirectoryHandle((g.fecha||'sin-fecha').slice(0,7),{create:true}).catch(()=>null);
+    const ps=paginasDe(g);
+    for(let k=0;k<ps.length;k++){
+      try{
+        if(!sub) throw new Error('carpeta');
+        const p=ps[k], nom=nomPag(g.folio,k);
+        let existe=null; try{ existe=await (await sub.getFileHandle(nom)).getFile(); }catch(e){}
+        if(existe && (!p.bytes || existe.size===p.bytes)){ ya++; }
+        else { const b=await blobDe(p.url); const w=await (await sub.getFileHandle(nom,{create:true})).createWritable(); await w.write(b); await w.close(); nuevas++; }
+      }catch(e){ err++; console.error(e); }
+    }
+    if(!silencioso) prog($('#pcProg'), ++i/l.length);
+  }
+  prog($('#pcProg'),null);
+  const msg=`${new Date().toLocaleTimeString('es-CL')}: ${nuevas} copiadas, ${ya} ya estaban${err?`, ${err} con error`:''}.`;
+  $('#pcLog').textContent=msg; if(!silencioso||nuevas) toast('Sincronización: '+msg, err?'err':'ok');
+}
+$('#pcSync').onclick=()=>sincronizarCarpeta(false);
+$('#pcAuto').onchange=e=>{ localStorage.setItem('gd_auto', e.target.checked?'1':'0'); };
+setInterval(()=>{ if(S.user && localStorage.getItem('gd_auto')==='1') sincronizarCarpeta(true); }, 600000);
+async function infoLocal(){
+  const nl=(await tx('local','readonly',s=>s.count()))||0, nc=(await tx('cola','readonly',s=>s.count()))||0;
+  $('#locInfo').innerHTML=`${fmtN(S.todas.size)} guías en caché · ${nl} fotos guardadas en este dispositivo (últimas 200) · ${nc} pendientes de subir`;}
+$('#locSync').onclick=async()=>{ await sincronizarDatos(); infoLocal(); toast('Datos actualizados','ok'); };
+$('#locReset').onclick=async()=>{ if(!confirm('Se borrará la caché de datos de este dispositivo y se volverá a descargar. ¿Continuar?')) return;
+  await tx('guias','readwrite',s=>s.clear()); await tx('kv','readwrite',s=>s.delete('lastTs')); S.todas=new Map(); await sincronizarDatos(); infoLocal(); };
+
+/* ---------- ADMIN ---------- */
+async function cargarUsuarios(){
+  const q=await db.collection('usuarios').get(); const us=[]; q.forEach(d=>us.push({id:d.id,...d.data()}));
+  us.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+  $('#usList').innerHTML=`<table><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Estado</th><th></th></tr>`+us.map(u=>`<tr data-u="${esc(u.id)}">
+    <td>${esc(u.nombre)}</td><td>${esc(u.id)}</td>
+    <td><select data-a="rol" ${u.id===S.user.id?'disabled':''}>${['admin','gestionador','lector'].map(r=>`<option value="${r}" ${u.rol===r?'selected':''}>${ROL_TXT[r]}</option>`).join('')}</select></td>
+    <td>${u.activo===false?'<span class="chip f">Bloqueado</span>':'<span class="chip r">Activo</span>'}</td>
+    <td style="white-space:nowrap"><button class="btn sec sm" data-a="clave">🔑</button>${u.id!==S.user.id?`<button class="btn sec sm" data-a="bloq">${u.activo===false?'Activar':'Bloquear'}</button><button class="btn sec sm" data-a="del">🗑️</button>`:''}</td></tr>`).join('')+'</table>';
+}
+$('#nuBtn').onclick=async()=>{
+  const nombre=$('#nuNombre').value.trim(), id=slug($('#nuUser').value), p=$('#nuPass').value, rol=$('#nuRol').value;
+  if(!nombre||!id||p.length<4) return toast('Completa nombre, usuario y clave (mín. 4 caracteres)','err');
+  const ref=db.collection('usuarios').doc(id); if((await ref.get()).exists) return toast('Ese usuario ya existe','err');
+  await ref.set({nombre, rol, activo:true, hash:await hashClave(id,p), creado:TS()});
+  $('#nuNombre').value=$('#nuUser').value=$('#nuPass').value=''; toast(`Usuario "${id}" creado`,'ok'); cargarUsuarios();
+};
+$('#usList').addEventListener('change',async e=>{ if(e.target.dataset.a!=='rol') return; const id=e.target.closest('tr').dataset.u; await db.collection('usuarios').doc(id).update({rol:e.target.value}); toast('Rol actualizado','ok'); });
+$('#usList').addEventListener('click',async e=>{
+  const b=e.target.closest('button[data-a]'); if(!b) return; const id=b.closest('tr').dataset.u, ref=db.collection('usuarios').doc(id);
+  if(b.dataset.a==='clave') abrirClave(false, id);
+  if(b.dataset.a==='bloq'){ const d=(await ref.get()).data(); await ref.update({activo:d.activo===false}); cargarUsuarios(); }
+  if(b.dataset.a==='del' && confirm(`¿Eliminar el usuario ${id}?`)){ await ref.delete(); cargarUsuarios(); }
+});
+function reqTipo(t){ const c=(S.cfg.tipos||{})[t]; return c && 'requiereFoto' in c ? !!c.requiereFoto : TIPOS[t].requiereFoto; }
+function mostrarTipos(){
+  $('#tpList').innerHTML=Object.entries(TIPOS).map(([k,v])=>`<label style="display:flex;gap:8px;align-items:center;color:var(--ink);margin:6px 0"><input type="checkbox" data-tp="${k}" style="width:auto" ${reqTipo(k)?'checked':''}> ${esc(v.nombre)} requiere foto</label>`).join('');
+  const cods=new Set(['1', ...Object.keys(S.cfg.conceptos||{}), ...[...S.todas.values()].map(g=>g.concepto).filter(Boolean).map(String)]);
+  (S._cnExtra||[]).forEach(c=>cods.add(c));
+  $('#cnList').innerHTML=`<table><tr><th>Concepto</th><th class="n">Guías</th><th>Tipo</th></tr>`+[...cods].sort((a,b)=>a.localeCompare(b,'es',{numeric:true})).map(c=>{
+    const n=[...S.todas.values()].filter(g=>String(g.concepto??'')===c).length, sel=(S.cfg.conceptos||{})[c]||(c==='1'?'venta':'otro');
+    return `<tr><td><b>${esc(c)}</b></td><td class="n">${fmtN(n)}</td><td><select data-cn="${esc(c)}">${Object.entries(TIPOS).map(([k,v])=>`<option value="${k}" ${k===sel?'selected':''}>${esc(v.nombre)}</option>`).join('')}</select></td></tr>`; }).join('')+'</table>';
+}
+$('#cnAdd').onclick=()=>{ const c=$('#cnNuevo').value.trim(); if(!c) return; (S._cnExtra=S._cnExtra||[]).push(c); $('#cnNuevo').value=''; mostrarTipos(); };
+$('#tpSave').onclick=async()=>{
+  const tipos={}, conceptos={};
+  document.querySelectorAll('[data-tp]').forEach(i=>tipos[i.dataset.tp]={requiereFoto:i.checked});
+  document.querySelectorAll('[data-cn]').forEach(s=>conceptos[s.dataset.cn]=s.value);
+  try{ await db.collection('config').doc('general').set({tipos, conceptos},{merge:true}); S.cfg.tipos=tipos; S.cfg.conceptos=conceptos; aplicarRango(); toast('Tipos y conceptos guardados','ok'); }
+  catch(e){ toast(e.message,'err'); }
+};
+function mostrarCfg(){ mostrarTipos(); const c=S.cfg; $('#cfNit').value=c.minNitidez; $('#cfLado').value=c.minLado; $('#cfBmin').value=c.minBrillo; $('#cfCon').value=c.minContraste; $('#cfMeses').value=c.meses; }
+$('#cfSave').onclick=async()=>{
+  const c={ calVer:S.cfg.calVer, minNitidez:+$('#cfNit').value, minLado:+$('#cfLado').value, minBrillo:+$('#cfBmin').value, minContraste:+$('#cfCon').value, meses:+$('#cfMeses').value||12 };
+  try{ await db.collection('config').doc('general').set({calidad:c},{merge:true}); Object.assign(S.cfg,c); toast('Configuración guardada','ok'); } catch(e){ toast(e.message,'err'); }
+};
+
+/* ---------- cambio de clave ---------- */
+let pwTarget=null;
+function abrirClave(forzado, id){
+  pwTarget=id||S.user.id; $('#pw1').value=$('#pw2').value=''; $('#pwErr').textContent='';
+  $('#pwTit').textContent = id&&id!==S.user.id ? `Nueva clave para ${id}` : 'Cambiar mi clave';
+  $('#pwSub').textContent = forzado ? 'Estás usando la clave inicial. Debes cambiarla para continuar.' : '';
+  $('#pwCancel').classList.toggle('hidden', !!forzado);
+  $('#mdPw').classList.remove('hidden'); $('#pw1').focus();
+}
+$('#pwBtn').onclick=()=>abrirClave(false);
+$('#pwCancel').onclick=()=>$('#mdPw').classList.add('hidden');
+$('#pwOk').onclick=async()=>{
+  const a=$('#pw1').value, b=$('#pw2').value;
+  if(a.length<4) return $('#pwErr').textContent='Mínimo 4 caracteres';
+  if(a!==b) return $('#pwErr').textContent='Las claves no coinciden';
+  const h=await hashClave(pwTarget,a);
+  await db.collection('usuarios').doc(pwTarget).update({hash:h, debeCambiar:false});
+  if(pwTarget===S.user.id) localStorage.setItem('gd_ses', JSON.stringify({id:S.user.id, hash:h}));
+  $('#mdPw').classList.add('hidden'); toast('Clave actualizada','ok');
+};
+document.getElementById('mdPw').addEventListener('click',e=>{ if(e.target.id==='mdPw' && !$('#pwCancel').classList.contains('hidden')) $('#mdPw').classList.add('hidden'); });
+
+init();
+// app instalable (Android, iPhone y PC) y carga rápida
+if('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
