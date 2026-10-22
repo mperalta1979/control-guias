@@ -132,6 +132,7 @@ tr.click{cursor:pointer}tr.click:hover{background:#f3f8fd}
   <button class="hbtn" id="outBtn" title="Salir">Salir</button>
 </header>
 <nav id="nav"></nav>
+<button id="syncAviso" class="hidden" style="display:block;width:100%;border:0;background:#fff4e0;color:var(--amber);padding:10px 14px;font-weight:600;text-align:left">⚠️ La copia automática a la carpeta del PC está en pausa (Chrome pide permiso de nuevo). Toca aquí para reactivarla.</button>
 <main>
 
   <!-- Filtro de período (Guías, Dashboard, PC) -->
@@ -259,7 +260,8 @@ tr.click{cursor:pointer}tr.click:hover{background:#f3f8fd}
   <section id="tab-pc" class="hidden">
     <div class="card">
       <h3>Carpeta en el computador (S:\)</h3>
-      <p class="muted">Solo en Chrome o Edge de computador. Eliges la carpeta una vez (ej. <b>S:\GUIAS DE DESPACHO\GUIAS RECEPCIONADAS</b>) y "Sincronizar" copia las fotos del período elegido arriba, en subcarpetas por mes (AAAA-MM) y con nombre GD_0125430.jpg. Las que ya están no se vuelven a copiar.</p>
+      <p class="muted">Solo en Chrome o Edge de computador. Eliges la carpeta una vez (ej. <b>S:\GUIAS DE DESPACHO\GUIAS RECEPCIONADAS</b>) y la app copia ahí <b>todas</b> las fotos subidas por cualquier usuario (no solo las del período elegido), en subcarpetas por mes de la guía (AAAA-MM) y con nombre GD_0125430.jpg. Las que ya están no se vuelven a copiar. Basta con activarlo en <b>un</b> computador.</p>
+      <p class="muted">Cuando Chrome pregunte si permite editar la carpeta, elige <b>"Permitir en cada visita"</b> para que no vuelva a preguntar al reiniciar.</p>
       <div id="pcDir" class="muted">Sin carpeta elegida.</div>
       <div class="row">
         <button class="btn sec" id="pcElegir">📁 Elegir carpeta</button>
@@ -504,6 +506,7 @@ async function entrar(id, x){
   await cargarLocal();
   await sincronizarDatos();
   actualizarCola(); procesarCola();
+  if(localStorage.getItem('gd_auto')==='1') setTimeout(()=>sincronizarCarpeta(true), 3000);
   setInterval(()=>sincronizarDatos(true), 120000);
   window.addEventListener('online', procesarCola);
 }
@@ -1512,37 +1515,62 @@ $('#dlPdf').onclick=async()=>{
   try{ bajar(await hacerPDF(l, p=>prog($('#dlProg'),p)), `guias_${$('#fDesde').value}_a_${$('#fHasta').value}.pdf`); }
   catch(e){ toast(e.message,'err'); } prog($('#dlProg'),null);
 };
-async function mostrarCarpeta(){ const h=await kvGet('dir').catch(()=>null); $('#pcDir').innerHTML = h?`Carpeta: <b>${esc(h.name)}</b>`:(window.showDirectoryPicker?'Sin carpeta elegida.':'⚠️ Este navegador no permite escribir en carpetas. Usa Chrome o Edge en el computador.'); $('#pcAuto').checked=localStorage.getItem('gd_auto')==='1'; }
+async function mostrarCarpeta(){ const h=await kvGet('dir').catch(()=>null); $('#pcDir').innerHTML = h?`Carpeta: <b>${esc(h.name)}</b>`:(window.showDirectoryPicker?'Sin carpeta elegida.':'⚠️ Este navegador no permite escribir en carpetas. Usa Chrome o Edge en el computador.'); $('#pcAuto').checked=localStorage.getItem('gd_auto')==='1';
+  const u=localStorage.getItem('gd_ultSync'); if(u && !$('#pcLog').textContent) $('#pcLog').textContent='Última sincronización '+u; }
 $('#pcElegir').onclick=async()=>{
   if(!window.showDirectoryPicker) return toast('Usa Chrome o Edge en el computador','err');
   try{ const h=await showDirectoryPicker({id:'guias',mode:'readwrite'}); await kvSet('dir',h); mostrarCarpeta(); toast('Carpeta guardada','ok'); } catch(e){ if(e.name!=='AbortError') toast(e.message,'err'); }
 };
+/* Copia a la carpeta del PC (ej. S:\). Copia TODAS las fotos que hay en la nube (de cualquier usuario y celular,
+   de los últimos meses que guarda la app), sin importar el período elegido arriba.
+   Lleva registro de lo ya copiado para no volver a descargar; "Sincronizar ahora" además revisa que cada
+   archivo siga en la carpeta y repone los que falten. */
+let _sincronizando=false;
+function avisoSync(mostrar){ $('#syncAviso').classList.toggle('hidden', !mostrar); }
 async function sincronizarCarpeta(silencioso){
+  if(_sincronizando) return;
   const h=await kvGet('dir').catch(()=>null);
   if(!h){ if(!silencioso) toast('Primero elige la carpeta','err'); return; }
   let perm=await h.queryPermission({mode:'readwrite'});
-  if(perm!=='granted'){ if(silencioso) return; perm=await h.requestPermission({mode:'readwrite'}); if(perm!=='granted') return; }
-  const l=conFoto(); let nuevas=0, ya=0, err=0, i=0;
-  for(const g of l){
-    const sub=await h.getDirectoryHandle((g.fecha||'sin-fecha').slice(0,7),{create:true}).catch(()=>null);
-    const ps=paginasDe(g);
-    for(let k=0;k<ps.length;k++){
-      try{
-        if(!sub) throw new Error('carpeta');
-        const p=ps[k], nom=nomPag(g.folio,k);
-        let existe=null; try{ existe=await (await sub.getFileHandle(nom)).getFile(); }catch(e){}
-        if(existe && (!p.bytes || existe.size===p.bytes)){ ya++; }
-        else { const b=await blobDe(p.url); const w=await (await sub.getFileHandle(nom,{create:true})).createWritable(); await w.write(b); await w.close(); nuevas++; }
-      }catch(e){ err++; console.error(e); }
-    }
-    if(!silencioso) prog($('#pcProg'), ++i/l.length);
+  if(perm!=='granted'){
+    // Chrome vuelve a pedir permiso tras reiniciar: sin un clic del usuario no se puede pedir, así que se avisa
+    if(silencioso){ avisoSync(true); return; }
+    perm=await h.requestPermission({mode:'readwrite'}); if(perm!=='granted'){ avisoSync(true); return; }
   }
-  prog($('#pcProg'),null);
-  const msg=`${new Date().toLocaleTimeString('es-CL')}: ${nuevas} copiadas, ${ya} ya estaban${err?`, ${err} con error`:''}.`;
-  $('#pcLog').textContent=msg; if(!silencioso||nuevas) toast('Sincronización: '+msg, err?'err':'ok');
+  avisoSync(false); _sincronizando=true;
+  try{
+    if(!silencioso) await sincronizarDatos(true);   // trae primero lo último que subieron otros usuarios
+    const hechos=(await kvGet('syncHechos').catch(()=>null))||{};
+    const l=[...S.todas.values()].filter(g=>g.foto && !g.eliminado).sort((a,b)=>a.folio-b.folio);
+    let nuevas=0, ya=0, err=0, i=0;
+    for(const g of l){
+      const ps=paginasDe(g); let sub=null;
+      for(let k=0;k<ps.length;k++){
+        const p=ps[k], nom=nomPag(g.folio,k), clave=`${g.folio}_${k}`;
+        try{
+          if(silencioso && hechos[clave]===p.url){ ya++; continue; }      // ya copiada (rápido, sin tocar el disco)
+          sub = sub || await h.getDirectoryHandle((g.fecha||'sin-fecha').slice(0,7),{create:true});
+          let existe=null; try{ existe=await (await sub.getFileHandle(nom)).getFile(); }catch(e){}
+          if(existe && hechos[clave]===p.url){ ya++; continue; }
+          // sin registro previo (ej. carpeta llenada antes): mismo tamaño = mismo archivo. Si el registro dice otra foto, se reemplaza.
+          if(existe && !hechos[clave] && p.bytes && existe.size===p.bytes){ hechos[clave]=p.url; ya++; continue; }
+          const b=await blobDe(p.url); const w=await (await sub.getFileHandle(nom,{create:true})).createWritable(); await w.write(b); await w.close();
+          hechos[clave]=p.url; nuevas++;
+        }catch(e){ err++; console.error(e); }
+      }
+      if(!silencioso) prog($('#pcProg'), ++i/l.length);
+      if(nuevas && nuevas%25===0) await kvSet('syncHechos',hechos);
+    }
+    await kvSet('syncHechos',hechos);
+    prog($('#pcProg'),null);
+    const msg=`${new Date().toLocaleTimeString('es-CL')}: ${nuevas} copiadas, ${ya} ya estaban${err?`, ${err} con error`:''}.`;
+    $('#pcLog').textContent='Última sincronización '+msg; localStorage.setItem('gd_ultSync', msg);
+    if(!silencioso||nuevas||err) toast('Copia a carpeta: '+msg, err?'err':'ok');
+  } finally { _sincronizando=false; }
 }
 $('#pcSync').onclick=()=>sincronizarCarpeta(false);
-$('#pcAuto').onchange=e=>{ localStorage.setItem('gd_auto', e.target.checked?'1':'0'); };
+$('#syncAviso').onclick=()=>sincronizarCarpeta(false);
+$('#pcAuto').onchange=e=>{ localStorage.setItem('gd_auto', e.target.checked?'1':'0'); if(e.target.checked) sincronizarCarpeta(false); };
 setInterval(()=>{ if(S.user && localStorage.getItem('gd_auto')==='1') sincronizarCarpeta(true); }, 600000);
 async function infoLocal(){
   const nl=(await tx('local','readonly',s=>s.count()))||0, nc=(await tx('cola','readonly',s=>s.count()))||0;
