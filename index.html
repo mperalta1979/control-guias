@@ -100,6 +100,9 @@ tr.click{cursor:pointer}tr.click:hover{background:#f3f8fd}
 .ocr{border-radius:10px;padding:10px 12px;margin-top:8px;font-size:14px;background:#eef5fc;border:1px solid var(--line)}
 .ocr.ok{background:#e6f4ea;border-color:#9fd3aa}.ocr.warn{background:#fff4e0;border-color:#f0c27a}.ocr.bad{background:#fdecea;border-color:#f1a7a1}
 .pill{display:inline-block;padding:3px 10px;margin:2px;border-radius:12px;background:var(--navy);color:#fff;font-size:13px;cursor:pointer;border:0}
+.dropzona{border:2px dashed var(--line);border-radius:12px;padding:14px;text-align:center;color:var(--muted);display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap}
+#imZona.drop{outline:3px dashed var(--navy);outline-offset:-6px;background:#eef5fc}
+#imZona.drop .dropzona{border-color:var(--navy);color:var(--navy)}
 .gaps{font-family:ui-monospace,Menlo,monospace;font-size:13px;line-height:1.6;word-break:break-word;max-height:220px;overflow:auto;background:#f6f9fc;border-radius:8px;padding:8px}
 @media (max-width:600px){.gi .ga{max-width:40%}.btn.sm{padding:6px 8px}}
 </style>
@@ -182,12 +185,14 @@ tr.click{cursor:pointer}tr.click:hover{background:#f3f8fd}
 
   <!-- IMPORTAR -->
   <section id="tab-importar" class="hidden">
-    <div class="card">
+    <div class="card" id="imZona">
       <h3>Importar guías recibidas por correo</h3>
-      <p class="muted">Fotos (JPG/PNG/HEIC) o PDF con varias guías. La app lee el folio y la NV de cada página y junta en una misma guía las copias con el mismo folio. Revisa los folios antes de subir. Un PDF grande (70+ páginas) tarda unos 5 minutos; conviene hacerlo desde el computador.</p>
-      <button class="btn" id="imBtn">Seleccionar archivos</button>
+      <p class="muted">Fotos (JPG/PNG/HEIC) o PDF con varias guías. Puedes elegir <b>varios archivos a la vez</b> (Ctrl o Shift al seleccionar) o <b>arrastrarlos</b> a este recuadro. La app lee el folio y la NV de cada página, junta en una misma guía las copias con el mismo folio y <b>omite las páginas que ya estaban subidas</b>. Un PDF grande (70+ páginas) tarda unos 5 minutos; conviene hacerlo desde el computador.</p>
+      <div class="dropzona">⬇️ Arrastra aquí los PDF o fotos, o
+        <button class="btn" id="imBtn">Seleccionar archivos</button></div>
       <input type="file" id="inImp" multiple accept="image/*,application/pdf" hidden>
       <div id="imInfo" class="muted" style="margin-top:8px"></div>
+      <div id="imResumen" class="hidden"></div>
       <div class="prog hidden" id="imProg"><i></i></div>
       <div id="imList"></div>
       <div id="imOpc" class="hidden">
@@ -677,6 +682,28 @@ function comprimir(el, max=2000, q=.82){
   const ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(el,0,0,c.width,c.height);
   return new Promise(r=>c.toBlob(r,'image/jpeg',q));
 }
+/* Huella de la imagen para detectar páginas repetidas (el mismo PDF importado dos veces).
+   Se reduce a 48×64 tonos de gris y se marca qué puntos son más oscuros que la mediana (3.072 bits).
+   Medido con guías reales: la misma página re-importada difiere ≤0,5%; la copia con y sin precios de una
+   misma guía difiere ≥10%. Se considera repetida bajo 2%. */
+function huella(el){
+  const W=48, H=64, c=document.createElement('canvas'); c.width=W*4; c.height=H*4;
+  const ctx=c.getContext('2d',{willReadFrequently:true}); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
+  ctx.drawImage(el,0,0,c.width,c.height);
+  const d=ctx.getImageData(0,0,c.width,c.height).data, g=new Float32Array(W*H);
+  for(let y=0;y<H*4;y++) for(let x=0;x<W*4;x++){ const k=(y*W*4+x)*4; g[(y>>2)*W+(x>>2)]+=(.299*d[k]+.587*d[k+1]+.114*d[k+2])/16; }
+  const med=[...g].sort((a,b)=>a-b)[g.length>>1];
+  const bytes=new Uint8Array(W*H/8); for(let i=0;i<g.length;i++) if(g[i]<med) bytes[i>>3]|=1<<(i&7);
+  let s=''; bytes.forEach(b=>s+=String.fromCharCode(b)); return btoa(s);
+}
+function distHuella(a,b){
+  if(!a||!b) return 100; const x=atob(a), y=atob(b); if(x.length!==y.length) return 100;
+  let n=0; for(let i=0;i<x.length;i++){ let v=x.charCodeAt(i)^y.charCodeAt(i); while(v){ n+=v&1; v>>=1; } }
+  return n/(x.length*8)*100;
+}
+const REPETIDA=2;
+// ¿esta huella ya está en alguna página guardada de la guía?
+const yaEnGuia = (g,h) => !!(g && h && paginasDe(g).some(p=>distHuella(p.huella,h)<REPETIDA));
 function miniatura(el){ const {w,h}=dims(el), s=180/Math.max(w,h); const c=document.createElement('canvas'); c.width=w*s; c.height=h*s; c.getContext('2d').drawImage(el,0,0,c.width,c.height); return c.toDataURL('image/jpeg',.7); }
 const thumb = url => url.replace('/upload/','/upload/w_200,c_limit,q_auto/');
 
@@ -828,16 +855,19 @@ async function subirCloudinary(blob, folio, fecha){
 }
 // modo: 'reemplazar' (la foto pasa a ser la principal y las anteriores quedan en historial)
 //       'agregar'    (se suma como página adicional; si la guía no tiene foto, queda como principal)
-async function guardarGuia(folio, blob, q, origen, por, ocr, modo='reemplazar'){
+async function guardarGuia(folio, blob, q, origen, por, ocr, modo='reemplazar', hu=null){
   folio=Number(folio);
   const FV=firebase.firestore.FieldValue;
   const ref=db.collection('guias').doc(String(folio));
   const snap=await ref.get(); const prev=snap.exists?snap.data():{};
+  // página idéntica a una ya guardada en esta guía (ej. el mismo PDF importado otra vez): no se sube de nuevo
+  if(hu && yaEnGuia(prev,hu)) return {...prev, folio, duplicada:true};
   const fecha=prev.fecha || fechaEstimada(folio);
   const up=await subirCloudinary(blob, folio, fecha);
   const foto={ url:up.secure_url, publicId:up.public_id, bytes:up.bytes, ancho:up.width, alto:up.height,
     nitidez:Math.round(q.nitidez), origen, por:(por&&por.nombre)||S.user.nombre, porId:(por&&por.id)||S.user.id, fechaHora:new Date().toISOString() };
   if(ocr){ foto.ocrFolio=ocr.folio||null; foto.ocrNV=ocr.nv||null; }
+  if(hu) foto.huella=hu;
   const data={ folio, fecha, eliminado:false, actualizado:TS() };
   if(!prev.nv && ocr && ocr.nv) data.nv=String(ocr.nv);
   if(!prev.cliente && ocr && ocr.cliente) data.cliente=ocr.cliente;
@@ -865,8 +895,8 @@ async function guardarCopiaLocal(folio, blob){
   const all=await tx('local','readonly',s=>s.getAllKeys());
   if(all.length>200){ const items=await tx('local','readonly',s=>s.getAll()); items.sort((a,b)=>a.ts-b.ts); const del=items.slice(0,items.length-200); await tx('local','readwrite',s=>del.forEach(i=>s.delete(i.folio))); }
 }
-async function encolar(folio, blob, q, origen, ocr, modo){
-  await tx('cola','readwrite',s=>s.add({folio:Number(folio), blob, q, origen, ocr:ocr||null, modo:modo||'reemplazar', por:{id:S.user.id,nombre:S.user.nombre}, ts:Date.now()}));
+async function encolar(folio, blob, q, origen, ocr, modo, hu){
+  await tx('cola','readwrite',s=>s.add({folio:Number(folio), blob, q, origen, ocr:ocr||null, modo:modo||'reemplazar', huella:hu||null, por:{id:S.user.id,nombre:S.user.nombre}, ts:Date.now()}));
   actualizarCola();
 }
 async function actualizarCola(){ const n=(await tx('cola','readonly',s=>s.count()))||0; $('#colaN').textContent=n; $('#colaBtn').classList.toggle('hidden',!n); }
@@ -874,7 +904,7 @@ let procesando=false;
 async function procesarCola(){
   if(procesando || !navigator.onLine || !S.user) return; procesando=true;
   try{ const items=await tx('cola','readonly',s=>s.getAll())||[];
-    for(const it of items){ try{ await guardarGuia(it.folio,it.blob,it.q,it.origen,it.por,it.ocr,it.modo); await tx('cola','readwrite',s=>s.delete(it.id)); toast(`Guía ${it.folio} subida (estaba pendiente)`,'ok'); } catch(e){ break; } }
+    for(const it of items){ try{ const r=await guardarGuia(it.folio,it.blob,it.q,it.origen,it.por,it.ocr,it.modo,it.huella); await tx('cola','readwrite',s=>s.delete(it.id)); toast(r.duplicada?`Guía ${it.folio}: esa foto ya estaba guardada`:`Guía ${it.folio} subida (estaba pendiente)`,'ok'); } catch(e){ break; } }
   } finally{ procesando=false; actualizarCola(); }
 }
 $('#colaBtn').onclick=()=>{ toast('Hay guías guardadas en este celular esperando señal. Se suben solas al volver la conexión.'); procesarCola(); };
@@ -929,7 +959,7 @@ async function procesarCaptura(file, origen){
   try{
     const els=await archivoAImagenes(file); const el=els[0];
     const q=analizar(el), mot=evaluar(q,origen);
-    S.capt={el,q,mot,origen};
+    S.capt={el,q,mot,origen,huella:huella(el)};
     $('#cpImg').src = el.src || el.toDataURL('image/jpeg',.8);
     $('#cpQ').innerHTML=htmlCalidad(q,mot);
     $('#cpOcr').innerHTML='';
@@ -955,18 +985,19 @@ async function guardarCaptura(){
   const ocrDatos = ocr && !ocr.leyendo && !ocr.error ? {folio:ocr.folio, nv:ocr.conf==='duda'?null:ocr.nv, cliente:ocr.cliente} : {};
   if($('#cpTipo') && $('#cpTipo').value) ocrDatos.tipo=$('#cpTipo').value;
   const g=S.todas.get(folio);
+  if(yaEnGuia(g, S.capt.huella)){ toast(`Esa misma imagen ya está guardada en la guía ${folio}: no se sube de nuevo`,'err',5000); return; }
   const modo = (g && g.foto) ? (($('#cpModo')&&$('#cpModo').value)||'agregar') : 'reemplazar';
   $('#cpSave').disabled=true; $('#cpForce').disabled=true;
   const blob=await comprimir(S.capt.el);
-  const {q,origen}=S.capt;
+  const {q,origen}=S.capt, hu=S.capt.huella;
   try{
     if(!navigator.onLine) throw new TypeError('offline');
     toast('Subiendo guía '+folio+'…');
-    await guardarGuia(folio,blob,q,origen,null,ocrDatos,modo);
-    registrarLog(folio, blob, true);
-    toast(`Guía ${folio} guardada ✔`,'ok');
+    const r=await guardarGuia(folio,blob,q,origen,null,ocrDatos,modo,hu);
+    registrarLog(folio, blob, !r.duplicada);
+    toast(r.duplicada?`Esa misma imagen ya estaba guardada en la guía ${folio}`:`Guía ${folio} guardada ✔`, r.duplicada?'err':'ok');
   } catch(e){
-    if(e instanceof TypeError || !navigator.onLine){ await encolar(folio,blob,q,origen,ocrDatos,modo); registrarLog(folio, blob, false); toast('Sin conexión: quedó guardada en el celular y se subirá sola','',5000); }
+    if(e instanceof TypeError || !navigator.onLine){ await encolar(folio,blob,q,origen,ocrDatos,modo,hu); registrarLog(folio, blob, false); toast('Sin conexión: quedó guardada en el celular y se subirá sola','',5000); }
     else { toast('Error al guardar: '+e.message,'err',6000); $('#cpSave').disabled=false; $('#cpForce').disabled=false; return; }
   }
   S.capt=null; $('#cpOcr').innerHTML=''; $('#cpPrev').classList.add('hidden'); $('#cpFolio').value=''; $('#cpInfo').textContent=''; $('#cpForce').disabled=false;
@@ -999,8 +1030,16 @@ async function recorrerPaginas(file, onPagina){
   const [el]=await archivoAImagenes(file); await onPagina(el,1,1);
 }
 let _impLeyendo=false;
-$('#inImp').onchange=async e=>{
-  const files=[...e.target.files]; e.target.value='';
+$('#inImp').onchange=e=>{ const files=[...e.target.files]; e.target.value=''; procesarArchivosImp(files); };
+// arrastrar y soltar archivos (fotos o PDF, varios a la vez) sobre la tarjeta de importar
+(()=>{ const z=$('#imZona'); if(!z) return;
+  ['dragenter','dragover'].forEach(ev=>z.addEventListener(ev,e=>{ e.preventDefault(); z.classList.add('drop'); }));
+  ['dragleave','drop'].forEach(ev=>z.addEventListener(ev,e=>{ e.preventDefault(); if(ev==='dragleave' && z.contains(e.relatedTarget)) return; z.classList.remove('drop'); }));
+  z.addEventListener('drop',e=>{ const fs=[...e.dataTransfer.files].filter(f=>/^image\//.test(f.type)||/\.pdf$/i.test(f.name)||f.type==='application/pdf');
+    if(!fs.length) return toast('Solo fotos o PDF','err'); procesarArchivosImp(fs); });
+})();
+async function procesarArchivosImp(files){
+  if(files.length>1) toast(`Leyendo ${files.length} archivos…`);
   for(const f of files){
     try{
       const num=(f.name.replace(/\.[^.]+$/,'').match(/\d{3,9}/g)||[]).sort((a,b)=>b.length-a.length)[0];
@@ -1008,7 +1047,7 @@ $('#inImp').onchange=async e=>{
         prog($('#imProg'), i/n); if(n>1) $('#imInfo').textContent=`Leyendo ${f.name}: página ${i} de ${n}…`;
         const q=analizar(el), mot=evaluar(q,'importada');
         const blob=await comprimir(el);
-        S.imp.push({ id:Math.random().toString(36).slice(2), blob, q, mot, nombre:f.name+(n>1?` (pág. ${i})`:''), folio: n===1&&num?Number(num):'', sel:!mot.length, mini:miniatura(el), est:'' });
+        S.imp.push({ id:Math.random().toString(36).slice(2), blob, q, mot, huella:huella(el), nombre:f.name+(n>1?` (pág. ${i})`:''), folio: n===1&&num?Number(num):'', sel:!mot.length, mini:miniatura(el), est:'' });
         if(i%5===0||i===n) renderImp();
       });
     } catch(err){ toast(`${f.name}: ${err.message}`,'err'); }
@@ -1027,7 +1066,22 @@ $('#inImp').onchange=async e=>{
       if(S.imp.includes(it)) renderImp();
     }
   } finally { _impLeyendo=false; $('#imInfo').textContent=''; }
-};
+}
+/* Marca las páginas repetidas: idénticas a una foto ya guardada en esa guía, o a otra página de esta misma
+   carga con el mismo folio (ej. el mismo PDF arrastrado dos veces). Se desmarcan solas y no se suben. */
+function marcarRepetidas(){
+  const vistas={};
+  for(const it of S.imp){
+    const f=Number(it.folio); let rep=null;
+    if(f && it.est!=='ok'){
+      if(yaEnGuia(S.todas.get(f), it.huella)) rep='app';
+      else if((vistas[f]||[]).some(h=>distHuella(h,it.huella)<REPETIDA)) rep='carga';
+      (vistas[f]=vistas[f]||[]).push(it.huella);
+    }
+    if(rep && !it.repetida && !it.selManual) it.sel=false;   // se desmarca una vez; si el usuario la vuelve a marcar, se respeta
+    it.repetida=rep;
+  }
+}
 function chipOCR(it){
   const r=it.ocr; if(!r) return '';
   if(r.leyendo) return '<div class="muted">🔍 leyendo folio y NV…</div>';
@@ -1036,25 +1090,67 @@ function chipOCR(it){
   if(r.conf==='duda' && !it.verificado){
     const otro = f===r.folio ? r.alternativa : r.folio;
     return `<div style="margin-top:4px"><span class="chip w">⚠️ verificar: ¿${f||r.folio} o ${otro}?</span> <button class="pill" data-k="okfolio">Confirmar ${f||r.folio}</button> <button class="pill" data-k="otrofolio" data-v="${otro}">Es ${otro}</button></div>`; }
-  if(r.folio && f && r.folio!==f && !(r.conf==='duda'&&r.alternativa===f)) h+=`<span class="chip f">foto dice ${r.folio}</span> `;
+  if(!f){
+    const sug=sugerirFolio(it);
+    return `<div style="margin-top:4px"><span class="chip f">✖ falta el folio: escríbelo mirando la foto</span>${sug.map(s=>` <button class="pill" data-k="otrofolio" data-v="${s.f}">${s.txt}</button>`).join('')}</div>`;
+  }
+  if(r.folio && r.folio!==f && !(r.conf==='duda'&&r.alternativa===f)) h+= it.verificado ? '<span class="chip r">folio escrito por ti</span> ' : `<span class="chip f">foto dice ${r.folio}</span> `;
   else if(r.folio) h+= (r.conf==='alta'||it.verificado)?'<span class="chip r">folio verificado</span> ':S.todas.get(r.folio)?.emitida?'<span class="chip w">revisar folio</span> ':'<span class="chip w">no está en Excel: por clasificar</span> ';
+  else h+= it.verificado ? '<span class="chip r">folio escrito por ti</span> ' : '<span class="chip w">folio no leído de la foto</span> ';
   if(r.cliente && !(S.todas.get(f)||{}).cliente) h+=`<span class="chip">${esc(r.cliente.slice(0,26))}</span> `;
-  else h+='<span class="chip w">folio no leído</span> ';
   if(r.nv) h+= r.nvOk===false?`<span class="chip f">NV ${r.nv} no coincide</span>`:`<span class="chip ${r.nvOk?'r':''}">NV ${r.nv}</span>`;
   return `<div style="margin-top:4px">${h}</div>`;
 }
+// Para una página sin folio: sugiere según las páginas vecinas del mismo PDF (vienen en orden correlativo).
+function sugerirFolio(it){
+  const i=S.imp.indexOf(it), base=s=>s.nombre.replace(/ \(pág\. \d+\)$/,'');
+  const mismo=x=>x && base(x)===base(it) && Number(x.folio);
+  let p=null, n=null;
+  for(let k=i-1;k>=0;k--){ if(base(S.imp[k])!==base(it)) break; if(mismo(S.imp[k])){ p=Number(S.imp[k].folio); break; } }
+  for(let k=i+1;k<S.imp.length;k++){ if(base(S.imp[k])!==base(it)) break; if(mismo(S.imp[k])){ n=Number(S.imp[k].folio); break; } }
+  const out=[], add=(f,txt)=>{ if(f && !out.some(o=>o.f===f)) out.push({f,txt}); };
+  if(p && n){
+    if(n-p===2) add(p+1, `¿Es ${p+1}?`);
+    else if(n===p) add(p, `¿Otra copia de ${p}?`);
+    else if(n-p===1){ add(p, `¿Copia de ${p}?`); add(n, `¿Copia de ${n}?`); }
+    else { add(p+1, `¿Es ${p+1}?`); add(p, `¿Copia de ${p}?`); }
+  } else if(p){ add(p+1, `¿Es ${p+1}?`); add(p, `¿Copia de ${p}?`); }
+  else if(n){ add(n-1, `¿Es ${n-1}?`); add(n, `¿Copia de ${n}?`); }
+  // ¿la guía sugerida es de verdad? se muestra el cliente para comparar con la foto
+  return out.slice(0,3).map(o=>{ const g=S.todas.get(o.f); return {...o, txt:o.txt+(g&&g.cliente?` · ${esc(g.cliente.slice(0,20))}`:'')}; });
+}
+// páginas que necesitan que alguien las mire antes de subir
+function necesitaRevision(it){
+  if(it.est==='ok' || (it.repetida && !it.sel)) return false;
+  if(!Number(it.folio) || it.mot.length || it.est==='err') return true;
+  const r=it.ocr; if(!r || r.leyendo) return false;
+  if(r.conf==='duda' && !it.verificado) return true;
+  if(r.folio && r.folio!==Number(it.folio) && !it.verificado) return true;
+  return r.nvOk===false;
+}
 function renderImp(){
+  marcarRepetidas();
   const vistos={};
-  $('#imList').innerHTML = S.imp.map(it=>{ const f=Number(it.folio); const n = f ? (vistos[f]=(vistos[f]||0)+1) : 0;
+  const rev=S.imp.filter(necesitaRevision), sinF=S.imp.filter(x=>x.est!=='ok' && !Number(x.folio)), leyendo=S.imp.filter(x=>x.ocr&&x.ocr.leyendo).length;
+  const nRep=S.imp.filter(x=>x.repetida && !x.sel).length;
+  if(S.impSoloRev && !rev.length) S.impSoloRev=false;
+  $('#imResumen').classList.toggle('hidden', !S.imp.length);
+  $('#imResumen').innerHTML = S.imp.length ? `<div class="qbox ${rev.length?'bad':'ok'}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <div style="flex:1;min-width:200px"><b>${fmtN(S.imp.length)} páginas</b> · ${fmtN(S.imp.length-rev.length)} listas${rev.length?` · <b style="color:var(--red)">${fmtN(rev.length)} por revisar</b>${sinF.length?` (${fmtN(sinF.length)} sin folio)`:''}`:''}${nRep?` · ${fmtN(nRep)} repetidas (no se suben)`:''}${leyendo?` · leyendo ${fmtN(leyendo)}…`:''}</div>
+      ${rev.length?`<button class="btn sm ${S.impSoloRev?'sec':''}" id="imSoloRev">${S.impSoloRev?'Ver todas':'Ver solo las '+rev.length+' por revisar'}</button>`:''}
+    </div>` : '';
+  const lista = S.impSoloRev ? rev : S.imp;
+  S.imp.forEach(it=>{ const f=Number(it.folio); it._n = f ? (vistos[f]=(vistos[f]||0)+1) : 0; });
+  $('#imList').innerHTML = lista.map(it=>{ const f=Number(it.folio); const n = it._n;
     const g=f?S.todas.get(f):null;
-    return `<div class="imp" data-id="${it.id}">
+    return `<div class="imp" data-id="${it.id}" style="${necesitaRevision(it)?'border-color:var(--red);background:#fff8f7':''}">
     <img src="${it.mini}" alt="">
     <div class="f">
       <div class="muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.nombre)}${n>1?` · <b style="color:var(--navy)">copia ${n} de GD ${f}</b>`:''}</div>
       ${g&&g.cliente?`<div class="muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(g.cliente)} · 🚚 ${esc(g.transportista||'—')}</div>`:''}
       <input type="number" inputmode="numeric" placeholder="Folio" value="${it.folio}" data-k="folio">
       <div style="margin-top:4px">${it.mot.length?`<span class="chip f" title="${esc(it.mot.join(' · '))}">✖ No legible</span> <span class="muted">${esc(it.mot[0])}</span>`:'<span class="chip r">✔ Legible</span>'} ${it.est?`<span class="chip ${it.est==='ok'?'r':'f'}">${it.est==='ok'?'Subida':'Error'}</span>`:''}</div>
-      ${chipOCR(it)}
+      ${it.repetida?`<div style="margin-top:4px"><span class="chip a">↺ ${it.repetida==='app'?'esta página ya está guardada en la app':'repetida en esta carga'}${it.sel?' (marcada a mano: se intentará subir)':': no se sube'}</span></div>`:chipOCR(it)}
     </div>
     <div style="display:flex;flex-direction:column;gap:6px;align-items:center">
       <input type="checkbox" data-k="sel" ${it.sel?'checked':''} ${it.mot.length&&!can('forzar')?'disabled':''} style="width:22px;height:22px">
@@ -1065,8 +1161,9 @@ function renderImp(){
   $('#imUp').classList.toggle('hidden', !S.imp.length);
   $('#imOpc').classList.toggle('hidden', !S.imp.length);
 }
-$('#imList').addEventListener('input',e=>{ const c=e.target.closest('.imp'); if(!c) return; const it=S.imp.find(x=>x.id===c.dataset.id); if(e.target.dataset.k==='folio'){ it.folio=e.target.value; it.verificado=true; } if(e.target.dataset.k==='sel') it.sel=e.target.checked; $('#imUp').textContent=`Subir ${S.imp.filter(x=>x.sel&&x.est!=='ok').length} página(s) seleccionada(s)`; });
+$('#imList').addEventListener('input',e=>{ const c=e.target.closest('.imp'); if(!c) return; const it=S.imp.find(x=>x.id===c.dataset.id); if(e.target.dataset.k==='folio'){ it.folio=e.target.value; it.verificado=true; } if(e.target.dataset.k==='sel'){ it.sel=e.target.checked; it.selManual=true; } $('#imUp').textContent=`Subir ${S.imp.filter(x=>x.sel&&x.est!=='ok').length} página(s) seleccionada(s)`; });
 $('#imList').addEventListener('change',e=>{ if(e.target.dataset.k==='folio') renderImp(); });
+$('#imResumen').addEventListener('click',e=>{ if(e.target.id==='imSoloRev'){ S.impSoloRev=!S.impSoloRev; renderImp(); $('#imResumen').scrollIntoView({behavior:'smooth',block:'start'}); } });
 $('#imList').addEventListener('click',e=>{
   const k=e.target.dataset.k;
   if(k==='okfolio'||k==='otrofolio'){ const c=e.target.closest('.imp'); const it=S.imp.find(x=>x.id===c.dataset.id);
@@ -1074,8 +1171,14 @@ $('#imList').addEventListener('click',e=>{
     it.verificado=true; renderImp(); return; }
   if(k==='del'){ const c=e.target.closest('.imp'); S.imp=S.imp.filter(x=>x.id!==c.dataset.id); renderImp(); } });
 $('#imUp').onclick=async()=>{
-  const sel=S.imp.filter(x=>x.sel && x.est!=='ok');
-  const sinF=sel.filter(x=>!Number(x.folio)); if(sinF.length){ toast(`Falta el folio en ${sinF.length} guía(s)`,'err'); return; }
+  let sel=S.imp.filter(x=>x.sel && x.est!=='ok');
+  const sinF=sel.filter(x=>!Number(x.folio));
+  if(sinF.length){
+    const resto=sel.length-sinF.length;
+    if(!resto || !confirm(`${sinF.length} página(s) no tienen folio (están marcadas en rojo).\n\nAceptar: subir ahora las otras ${resto}; las ${sinF.length} sin folio quedan en la lista para completarlas.\nCancelar: revisarlas primero.`)){
+      S.impSoloRev=true; renderImp(); $('#imResumen').scrollIntoView({behavior:'smooth',block:'start'}); return; }
+    sel=sel.filter(x=>Number(x.folio));
+  }
   if(S.imp.some(x=>x.sel && x.ocr && x.ocr.leyendo) && !confirm('Todavía estoy leyendo folios de algunas páginas. ¿Subir de todas formas las que ya tienen folio?')) return;
   const malas=sel.filter(x=>x.ocr && x.ocr.folio && x.ocr.folio!==Number(x.folio));
   if(malas.length && !confirm(`En ${malas.length} página(s) el folio escrito no coincide con el leído en la foto (ej. ${malas[0].folio} vs ${malas[0].ocr.folio}). ¿Subir igual?`)) return;
@@ -1083,15 +1186,19 @@ $('#imUp').onclick=async()=>{
   if(dudas.length && !confirm(`${dudas.length} página(s) están marcadas "verificar" (ej. folio ${dudas[0].folio}): la app no está segura entre dos folios parecidos. ¿Subirlas igual con el folio indicado?`)) return;
   const modoExist=$('#imModo').value;
   // agrupa por folio: la 1ª página de cada guía usa el modo elegido, las siguientes se agregan como páginas
-  const primera=new Set(); let nGuias=0;
-  $('#imUp').disabled=true; let ok=0;
+  const primera=new Set(); const guias=new Set();
+  $('#imUp').disabled=true; let ok=0, rep=0;
   for(let i=0;i<sel.length;i++){ const it=sel[i]; prog($('#imProg'), i/sel.length);
     const f=Number(it.folio); let modo='agregar';
-    if(!primera.has(f)){ primera.add(f); nGuias++; modo = S.todas.get(f)?.foto ? modoExist : 'reemplazar'; }
-    try{ await guardarGuia(f, it.blob, it.q, 'importada', null, it.ocr&&!it.ocr.leyendo&&!it.ocr.error?{folio:it.ocr.folio,nv:it.ocr.nv,cliente:it.ocr.cliente}:null, modo); it.est='ok'; ok++; }
+    if(!primera.has(f)){ primera.add(f); modo = S.todas.get(f)?.foto ? modoExist : 'reemplazar'; }
+    try{ const r=await guardarGuia(f, it.blob, it.q, 'importada', null, it.ocr&&!it.ocr.leyendo&&!it.ocr.error?{folio:it.ocr.folio,nv:it.ocr.nv,cliente:it.ocr.cliente}:null, modo, it.huella);
+      it.est='ok'; if(r.duplicada) rep++; else { ok++; guias.add(f); } }
     catch(e){ it.est='err'; console.error(e); } }
   prog($('#imProg'),null); $('#imUp').disabled=false;
-  toast(`${ok} de ${sel.length} páginas subidas (${nGuias} guías)`, ok===sel.length?'ok':'err', 5000);
+  const err=sel.filter(x=>x.est==='err').length;
+  toast(`${ok} página(s) subidas (${guias.size} guías)${rep?` · ${rep} ya estaban y se omitieron`:''}${err?` · ${err} con error`:''}`, err?'err':'ok', 6000);
+  // las repetidas que no se subieron salen de la lista
+  S.imp=S.imp.filter(x=>!(x.repetida && !x.sel));
   S.imp=S.imp.filter(x=>x.est!=='ok'); renderImp();
 };
 
